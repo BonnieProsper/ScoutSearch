@@ -18,7 +18,8 @@ class IndexStats:
     def get_doc_length(self, doc_id: int) -> int:
         return self.doc_lengths.get(doc_id, 0)
 
+    @property
     def avg_doc_length(self) -> float:
-        if self.total_docs == 0:
-            return 0.0
+        if not self.doc_lengths:
+            return 1.0
         return sum(self.doc_lengths.values()) / self.total_docs
