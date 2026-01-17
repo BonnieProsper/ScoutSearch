@@ -23,3 +23,4 @@ class IndexStats:
         if not self.doc_lengths:
             return 1.0
         return sum(self.doc_lengths.values()) / self.total_docs
+    
