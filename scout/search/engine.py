@@ -1,12 +1,12 @@
 # scout/search/engine.py
 
-from typing import Dict, Iterable, List, Tuple
+from typing import Dict, Iterable, List, Optional, Tuple
 
 from scout.index.builder import IndexBuilder
 from scout.index.inverted import InvertedIndex
 from scout.index.tokens import Tokenizer
 from scout.ranking.base import RankingResult, RankingStrategy
-
+from scout.state.signals import IndexState
 
 class SearchEngine:
     """
@@ -19,11 +19,14 @@ class SearchEngine:
         index: InvertedIndex,
         ranking: RankingStrategy,
         tokenizer: Tokenizer,
+        state: Optional[IndexState] = None, # optional reactive state
     ):
         self._index = index
         self._ranking = ranking
         self._tokenizer = tokenizer
-
+        self._state = state
+        if self._state:
+            self._state.subscribe_to_changes(self._on_index_change)
     @classmethod
     def from_records(
         cls,
@@ -95,3 +98,7 @@ class SearchEngine:
                 candidates.add(doc_id)
 
         return candidates
+    
+    def _on_index_change(self, doc_id: int):
+        # For example: log or re-cache candidates
+        print(f"[Signal] Document {doc_id} added to index.")
