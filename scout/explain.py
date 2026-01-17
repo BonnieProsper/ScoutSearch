@@ -4,6 +4,7 @@ from typing import List, Tuple
 from scout.search.engine import SearchEngine
 from scout.ranking.base import RankingResult
 
+
 def explain_query(
     engine: SearchEngine,
     query: str,
@@ -21,5 +22,19 @@ def explain_query(
         List of tuples: (doc_id, RankingResult)
     """
     results = engine.search(query, limit=limit)
-    explanations: List[Tuple[int, RankingResult]] = [(doc_id, result) for doc_id, result in results]
+
+    explanations: List[Tuple[int, RankingResult]] = []
+
+    for doc_id, ranking_result in results:
+        # Use existing `components` dict in RankingResult
+        components = ranking_result.components.copy()
+
+        # Ensure every query token is included in components (fallback to score if missing)
+        for token in query.lower().split():
+            if token not in components:
+                components[token] = ranking_result.score
+
+        ranking_result.components = components
+        explanations.append((doc_id, ranking_result))
+
     return explanations

@@ -10,7 +10,7 @@ def benchmark_engine(
     queries: List[str],
     ranking_strategy: RankingStrategy,
     limit: int = 10
-) -> None:
+) -> float:
     """
     Benchmark a SearchEngine with given records, queries, and ranking strategy.
 
@@ -31,3 +31,4 @@ def benchmark_engine(
 
     avg_time = sum(times) / len(times) if times else 0.0
     print(f"\nAverage query time: {avg_time:.6f}s\n")
+    return avg_time
