@@ -13,6 +13,7 @@ class SearchEngine:
     """
     High-level search façade coordinating tokenization, ranking,
     and result aggregation over an inverted index.
+    Supports query operators, phrase matching, and incremental indexing.
     """
 
     def __init__(
@@ -30,17 +31,17 @@ class SearchEngine:
         if self._state:
             self._state.on_change.subscribe(self._on_index_change)
 
-
     @classmethod
     def from_records(
         cls,
         records: List[Dict],
         *,
-        fields: List[str] | None = None,
-        ngram: int | None = None,
+        fields: Optional[List[str]] = None,
+        ngram: Optional[int] = None,
         ranking: RankingStrategy,
         state: Optional[IndexState] = None,
     ) -> "SearchEngine":
+        """Build a SearchEngine from raw records."""
         builder = IndexBuilder(fields=fields, ngram=ngram)
         index = builder.build(records)
         tokenizer = Tokenizer(ngram=ngram)
@@ -60,11 +61,9 @@ class SearchEngine:
         doc_id: int,
         record: Dict,
         *,
-        fields: List[str] | None = None,
+        fields: Optional[List[str]] = None,
     ) -> None:
-        """
-        Incrementally add a document to the index.
-        """
+        """Incrementally add a document to the index and state."""
         tokens = self._tokenizer.tokenize_record(record, fields=fields)
 
         if self._state:
@@ -78,34 +77,39 @@ class SearchEngine:
         *,
         limit: int = 10,
     ) -> List[Tuple[int, RankingResult]]:
+        """
+        Search the index using query operators:
+          - required terms
+          - optional terms
+          - excluded terms
+          - phrases (must appear in order)
+        """
         from scout.search.query import parse_query
 
         parsed = parse_query(query)
-
         query_tokens = list(parsed.required | parsed.optional)
+
         if not query_tokens:
             return []
 
         scores: Dict[int, RankingResult] = {}
 
         for doc_id in self._candidate_documents(query_tokens):
-            # Exclude terms
-            if parsed.exclude:
-                if any(
-                    self._index.document_contains(doc_id, t)
-                    for t in parsed.exclude
-                ):
-                    continue
+            # Excluded terms
+            if parsed.exclude and any(
+                self._index.document_contains(doc_id, t)
+                for t in parsed.exclude
+            ):
+                continue
 
             # Required terms
-            if parsed.required:
-                if not all(
-                    self._index.document_contains(doc_id, t)
-                    for t in parsed.required
-                ):
-                    continue
+            if parsed.required and not all(
+                self._index.document_contains(doc_id, t)
+                for t in parsed.required
+            ):
+                continue
 
-            # Phrase filtering (only if we can access tokens)
+            # Phrase filtering
             if parsed.phrases and self._state:
                 doc_tokens = self._state.get_document_tokens(doc_id)
                 if not self._matches_phrases(doc_tokens, parsed.phrases):
@@ -120,13 +124,15 @@ class SearchEngine:
             if result.score > 0.0:
                 scores[doc_id] = result
 
+        # Sort by score descending, limit results
         return sorted(
             scores.items(),
             key=lambda item: item[1].score,
             reverse=True,
         )[:limit]
-    
+
     def _candidate_documents(self, query_tokens: List[str]) -> Iterable[int]:
+        """Return a set of candidate document IDs matching any query token."""
         candidates = set()
         for token in query_tokens:
             for doc_id, _ in self._index.get_postings(token):
@@ -134,14 +140,15 @@ class SearchEngine:
         return candidates
 
     def _on_index_change(self, doc_id: int) -> None:
-        # Hook for caching invalidation, persistence, logging, intentionally empty
+        """Hook for persistence, caching, logging (called on every index change)."""
         pass
 
+    @staticmethod
     def _matches_phrases(
-        self,
         tokens: List[str],
         phrases: List[List[str]],
     ) -> bool:
+        """Check if all phrases appear in the token list."""
         for phrase in phrases:
             plen = len(phrase)
             found = False
@@ -152,5 +159,3 @@ class SearchEngine:
             if not found:
                 return False
         return True
-
-
