@@ -12,7 +12,6 @@ from scout.state.signals import IndexState
 from scout.state.persistence import AutoSaver
 
 
-
 RANKINGS = {
     "robust": RobustRanking,
     "bm25": BM25Ranking,
@@ -36,11 +35,12 @@ def main() -> None:
         records = json.load(f)
 
     ranking = RANKINGS[args.ranking]()
-    engine = SearchEngine.from_records(records, ranking=ranking)
 
+    # ---- State & persistence FIRST ----
     state = IndexState()
     AutoSaver(state)
 
+    # ---- Build engine once ----
     engine = SearchEngine.from_records(
         records,
         ranking=ranking,
