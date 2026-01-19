@@ -1,4 +1,7 @@
 [
-    {"id": 1, "text": "Sample document one"},
-    {"id": 2, "text": "Another sample document"}
+  {"id": 1, "text": "Document one sample text"},
+  {"id": 2, "text": "Document two sample text"},
+  {"id": 3, "text": "Document three sample text"},
+  {"id": 4, "text": "Document four sample text"},
+  {"id": 5, "text": "Document five sample text"}
 ]

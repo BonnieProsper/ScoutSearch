@@ -1,5 +1,3 @@
-# scout/benchmark.py
-
 import time
 from typing import List, Dict
 from scout.search.engine import SearchEngine
@@ -14,18 +12,17 @@ def benchmark_engine(
     """
     Benchmark a SearchEngine with given records, queries, and ranking strategy.
 
-    Prints per-query time and average time.
+    Returns average query time in seconds.
     """
     print(f"\nBenchmarking {ranking_strategy.__class__.__name__} with {len(records)} documents...\n")
 
     engine = SearchEngine.from_records(records, ranking=ranking_strategy)
 
     times: List[float] = []
-
     for query in queries:
-        start = time.time()
+        start = time.perf_counter()
         results = engine.search(query, limit=limit)
-        elapsed = time.time() - start
+        elapsed = time.perf_counter() - start
         times.append(elapsed)
         print(f"Query: '{query}' - {len(results)} results in {elapsed:.6f}s")
 
