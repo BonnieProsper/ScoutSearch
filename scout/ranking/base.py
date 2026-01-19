@@ -1,20 +1,24 @@
 # scout/ranking/base.py
 
 from abc import ABC, abstractmethod
-from typing import Dict, List, Optional
+from typing import Dict, List
 from scout.index.inverted import InvertedIndex
 
 
 class RankingResult:
     """
-    Result of scoring a single document for a query.
+    Result of scoring a single document.
+
+    - score: final numeric score
+    - components: high-level score components (strategy-defined)
+    - per_term: token-level explanations (optional, strategy-defined)
     """
 
     def __init__(
         self,
         score: float,
         components: Dict[str, float],
-        per_term: Optional[Dict[str, Dict[str, float]]] = None,
+        per_term: Dict[str, Dict[str, float]] | None = None,
     ):
         self.score = score
         self.components = components

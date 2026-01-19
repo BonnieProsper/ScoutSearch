@@ -2,17 +2,15 @@
 
 import math
 from collections import defaultdict
-from typing import List, Dict
-from .base import RankingStrategy, RankingResult
+from typing import Dict, List
+
 from scout.index.inverted import InvertedIndex
+from scout.ranking.base import RankingResult, RankingStrategy
+
 
 class BM25Ranking(RankingStrategy):
     """
     Okapi BM25 ranking strategy.
-
-    Attributes:
-        k1 (float): Term frequency saturation parameter.
-        b (float): Length normalization parameter.
     """
 
     def __init__(self, k1: float = 1.5, b: float = 0.75):
@@ -23,10 +21,10 @@ class BM25Ranking(RankingStrategy):
         self,
         query_tokens: List[str],
         index: InvertedIndex,
-        doc_id: int
+        doc_id: int,
     ) -> RankingResult:
-        score: float = 0.0
-        components: Dict[str, float] = defaultdict(float)
+        total_score = 0.0
+        per_term: Dict[str, Dict[str, float]] = {}
 
         N = index.stats.total_docs
         avg_dl = index.stats.avg_doc_length
@@ -41,14 +39,29 @@ class BM25Ranking(RankingStrategy):
                     break
 
             df = index.doc_freqs.get(token, 0)
-            if df == 0:
+            if df == 0 or tf == 0:
                 continue
 
             idf = math.log((N - df + 0.5) / (df + 0.5) + 1.0)
             denom = tf + self.k1 * (1 - self.b + self.b * (doc_len / avg_dl))
-            token_score = idf * (tf * (self.k1 + 1) / denom if denom > 0 else 0)
+            score = idf * (tf * (self.k1 + 1) / denom)
 
-            score += token_score
-            components[token] = token_score
+            total_score += score
+            per_term[token] = {
+                "tf": float(tf),
+                "df": float(df),
+                "idf": float(idf),
+                "score": float(score),
+            }
 
-        return RankingResult(score=score, components=dict(components))
+        components = {
+            "bm25": total_score,
+            "k1": self.k1,
+            "b": self.b,
+        }
+
+        return RankingResult(
+            score=total_score,
+            components=components,
+            per_term=per_term,
+        )

@@ -14,7 +14,7 @@ def explain_query(
     Explain query results by returning top documents along with
     token-level scoring components.
 
-    This function is PURE:
+    PURE FUNCTION:
     - It does not mutate engine state
     - It does not mutate RankingResult objects returned by search()
     """
