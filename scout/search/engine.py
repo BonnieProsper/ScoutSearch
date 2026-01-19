@@ -89,12 +89,13 @@ class SearchEngine:
         scores: Dict[int, RankingResult] = {}
 
         for doc_id in self._candidate_documents(query_tokens):
-            # Exclusion filter
+            # Exclusion filter (CORRECT)
             if parsed.exclude:
-                doc_tokens = self._index.doc_tokens.get(doc_id, [])
-                if any(token in doc_tokens for token in parsed.exclude):
+                if any(
+                    self._index.document_contains(doc_id, token)
+                    for token in parsed.exclude
+                ):
                     continue
-
             result = self._ranking.score(
                 query_tokens=query_tokens,
                 index=self._index,
@@ -109,6 +110,7 @@ class SearchEngine:
             key=lambda item: item[1].score,
             reverse=True,
         )[:limit]
+
 
     def _candidate_documents(self, query_tokens: List[str]) -> Iterable[int]:
         candidates = set()

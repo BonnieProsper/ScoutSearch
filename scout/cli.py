@@ -8,6 +8,9 @@ from scout.ranking.robust import RobustRanking
 from scout.ranking.bm25 import BM25Ranking
 from scout.explain import explain_query
 from scout.benchmark import benchmark_engine
+from scout.state.signals import IndexState
+from scout.state.persistence import AutoSaver
+
 
 
 RANKINGS = {
@@ -34,6 +37,15 @@ def main() -> None:
 
     ranking = RANKINGS[args.ranking]()
     engine = SearchEngine.from_records(records, ranking=ranking)
+
+    state = IndexState()
+    AutoSaver(state)
+
+    engine = SearchEngine.from_records(
+        records,
+        ranking=ranking,
+        state=state,
+    )
 
     if args.benchmark:
         benchmark_engine(records, [args.query], ranking)

@@ -47,3 +47,12 @@ class InvertedIndex:
 
     def get_document(self, doc_id: int) -> dict:
         return self.documents.get(doc_id, {})
+
+    def document_contains(self, doc_id: int, token: str) -> bool:
+        """
+        Return True if the document contains the given token.
+        """
+        for posting_doc_id, _ in self.get_postings(token):
+            if posting_doc_id == doc_id:
+                return True
+        return False
