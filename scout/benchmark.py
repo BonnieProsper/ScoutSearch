@@ -1,10 +1,29 @@
 # scout/benchmark.py
 
 import time
-from typing import List, Dict
+from typing import List, Dict, Optional
 import matplotlib.pyplot as plt
+import random
+import string
 from scout.search.engine import SearchEngine
 from scout.ranking.base import RankingStrategy
+
+
+def generate_sample_records(n_docs: int = 1000, max_words: int = 20) -> List[Dict]:
+    """Generate realistic synthetic dataset for benchmarking."""
+    records = []
+    for i in range(1, n_docs + 1):
+        text_words = [
+            ''.join(random.choices(string.ascii_lowercase, k=random.randint(3, 8)))
+            for _ in range(random.randint(5, max_words))
+        ]
+        records.append({
+            "id": i,
+            "title": ' '.join(text_words[:3]),
+            "text": ' '.join(text_words),
+            "timestamp": None  # optional, for recency
+        })
+    return records
 
 
 def benchmark_engine(
@@ -12,25 +31,32 @@ def benchmark_engine(
     queries: List[str],
     ranking_strategy: RankingStrategy,
     limit: int = 10,
-    plot: bool = True
+    plot: bool = True,
+    show_scores: bool = True
 ) -> float:
+    """
+    Benchmark a SearchEngine with given records and queries.
+    Returns average query time in seconds.
+    """
     print(f"\nBenchmarking {ranking_strategy.__class__.__name__} with {len(records)} documents...\n")
 
     engine = SearchEngine.from_records(records, ranking=ranking_strategy)
     times: List[float] = []
+    all_scores: List[List[float]] = []
 
     for query in queries:
         start = time.perf_counter()
         results = engine.search(query, limit=limit)
         elapsed = time.perf_counter() - start
         times.append(elapsed)
+        all_scores.append([r.score for _, r in results])
         print(f"Query: '{query}' - {len(results)} results in {elapsed:.6f}s")
 
     avg_time = sum(times) / len(times) if times else 0.0
     print(f"\nAverage query time: {avg_time:.6f}s\n")
 
     if plot:
-        plt.figure(figsize=(8, 4))
+        plt.figure(figsize=(10, 4))
         plt.bar(range(len(queries)), times, tick_label=queries)
         plt.ylabel("Query Time (s)")
         plt.title(f"Benchmark: {ranking_strategy.__class__.__name__}")
@@ -38,4 +64,32 @@ def benchmark_engine(
         plt.tight_layout()
         plt.show()
 
+        if show_scores:
+            plt.figure(figsize=(10, 4))
+            for i, scores in enumerate(all_scores):
+                plt.scatter([queries[i]] * len(scores), scores, alpha=0.6)
+            plt.ylabel("Document Score")
+            plt.title(f"Score distribution per query ({ranking_strategy.__class__.__name__})")
+            plt.tight_layout()
+            plt.show()
+
     return avg_time
+
+
+if __name__ == "__main__":
+    # Demo benchmark with synthetic dataset
+    from scout.ranking.robust import RobustRanking
+    from scout.ranking.bm25 import BM25Ranking
+    from scout.ranking.fusion import FusionRanking
+
+    records = generate_sample_records(500)
+    queries = ["quick fox", "lazy dog", "random test"]
+
+    strategies = [
+        RobustRanking(),
+        BM25Ranking(),
+        FusionRanking(strategies=[BM25Ranking(), RobustRanking()], weights=[0.5, 0.5])
+    ]
+
+    for strat in strategies:
+        benchmark_engine(records, queries, strat)
