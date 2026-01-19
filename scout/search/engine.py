@@ -82,35 +82,33 @@ class SearchEngine:
 
         parsed = parse_query(query)
 
-        # Tokens used for ranking
         query_tokens = list(parsed.required | parsed.optional)
-
         if not query_tokens:
             return []
 
         scores: Dict[int, RankingResult] = {}
 
         for doc_id in self._candidate_documents(query_tokens):
-            # Exclusions
+            # Exclude terms
             if parsed.exclude:
                 if any(
-                    self._index.document_contains(doc_id, token)
-                    for token in parsed.exclude
+                    self._index.document_contains(doc_id, t)
+                    for t in parsed.exclude
                 ):
                     continue
 
             # Required terms
             if parsed.required:
                 if not all(
-                    self._index.document_contains(doc_id, token)
-                    for token in parsed.required
+                    self._index.document_contains(doc_id, t)
+                    for t in parsed.required
                 ):
                     continue
 
-            # Phrase filtering
-            if parsed.phrases:
-                doc_tokens = self._index.document_tokens(doc_id)
-                if not _matches_phrases(doc_tokens, parsed.phrases):
+            # Phrase filtering (only if we can access tokens)
+            if parsed.phrases and self._state:
+                doc_tokens = self._state.get_document_tokens(doc_id)
+                if not self._matches_phrases(doc_tokens, parsed.phrases):
                     continue
 
             result = self._ranking.score(
@@ -127,8 +125,7 @@ class SearchEngine:
             key=lambda item: item[1].score,
             reverse=True,
         )[:limit]
-
-
+    
     def _candidate_documents(self, query_tokens: List[str]) -> Iterable[int]:
         candidates = set()
         for token in query_tokens:
@@ -141,6 +138,7 @@ class SearchEngine:
         pass
 
     def _matches_phrases(
+        self,
         tokens: List[str],
         phrases: List[List[str]],
     ) -> bool:
@@ -154,4 +152,5 @@ class SearchEngine:
             if not found:
                 return False
         return True
+
 
