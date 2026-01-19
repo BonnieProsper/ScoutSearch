@@ -10,10 +10,17 @@ from scout.explain import explain_query
 from scout.benchmark import benchmark_engine
 from scout.state.signals import IndexState
 from scout.state.persistence import AutoSaver
+from scout.ranking.composite import CompositeRanking
+from scout.ranking.recency import RecencyRanking
 
 RANKINGS = {
     "robust": RobustRanking,
     "bm25": BM25Ranking,
+    "fusion": lambda: CompositeRanking(
+        strategies=[BM25Ranking(), RobustRanking()],
+        weights=[0.5, 0.5],
+        recency=RecencyRanking(decay_days=30.0, max_boost=1.0)
+    ),
     # Fusion example: combines BM25 + Robust
     "fusion": lambda: FusionRanking(
         strategies=[BM25Ranking(), RobustRanking()],

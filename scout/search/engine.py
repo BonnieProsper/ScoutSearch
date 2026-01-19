@@ -1,6 +1,7 @@
 # scout/search/engine.py
 
 from typing import Dict, Iterable, List, Optional, Tuple
+from datetime import datetime
 
 from scout.index.builder import IndexBuilder
 from scout.index.inverted import InvertedIndex
@@ -12,8 +13,7 @@ from scout.state.signals import IndexState
 class SearchEngine:
     """
     High-level search façade coordinating tokenization, ranking,
-    and result aggregation over an inverted index.
-    Supports query operators, phrase matching, and incremental indexing.
+    field/phrase weighting, and result aggregation over an inverted index.
     """
 
     def __init__(
@@ -22,11 +22,13 @@ class SearchEngine:
         ranking: RankingStrategy,
         tokenizer: Tokenizer,
         state: Optional[IndexState] = None,
+        field_weights: Optional[Dict[str, float]] = None,
     ):
         self._index = index
         self._ranking = ranking
         self._tokenizer = tokenizer
         self._state = state
+        self._field_weights = field_weights or {}
 
         if self._state:
             self._state.on_change.subscribe(self._on_index_change)
@@ -40,8 +42,8 @@ class SearchEngine:
         ngram: Optional[int] = None,
         ranking: RankingStrategy,
         state: Optional[IndexState] = None,
+        field_weights: Optional[Dict[str, float]] = None,
     ) -> "SearchEngine":
-        """Build a SearchEngine from raw records."""
         builder = IndexBuilder(fields=fields, ngram=ngram)
         index = builder.build(records)
         tokenizer = Tokenizer(ngram=ngram)
@@ -54,6 +56,7 @@ class SearchEngine:
             ranking=ranking,
             tokenizer=tokenizer,
             state=state,
+            field_weights=field_weights,
         )
 
     def add_document(
@@ -63,9 +66,17 @@ class SearchEngine:
         *,
         fields: Optional[List[str]] = None,
     ) -> None:
-        """Incrementally add a document to the index and state."""
-        tokens = self._tokenizer.tokenize_record(record, fields=fields)
-
+        """
+        Incrementally add a document to the index.
+        """
+        tokens = []
+        used_fields = fields or self._field_weights.keys() or ["text"]
+        for field in used_fields:
+            field_text = str(record.get(field, ""))
+            weight = self._field_weights.get(field, 1.0)
+            field_tokens = self._tokenizer.tokenize(field_text)
+            # Repeat tokens according to field weight
+            tokens.extend(field_tokens * int(weight))
         if self._state:
             self._state.add_document(doc_id, tokens, metadata=record)
         else:
@@ -77,62 +88,45 @@ class SearchEngine:
         *,
         limit: int = 10,
     ) -> List[Tuple[int, RankingResult]]:
-        """
-        Search the index using query operators:
-          - required terms
-          - optional terms
-          - excluded terms
-          - phrases (must appear in order)
-        """
         from scout.search.query import parse_query
 
         parsed = parse_query(query)
         query_tokens = list(parsed.required | parsed.optional)
-
         if not query_tokens:
             return []
 
         scores: Dict[int, RankingResult] = {}
 
         for doc_id in self._candidate_documents(query_tokens):
-            # Excluded terms
+            # Exclude terms
             if parsed.exclude and any(
-                self._index.document_contains(doc_id, t)
-                for t in parsed.exclude
+                self._index.document_contains(doc_id, t) for t in parsed.exclude
             ):
                 continue
 
             # Required terms
             if parsed.required and not all(
-                self._index.document_contains(doc_id, t)
-                for t in parsed.required
+                self._index.document_contains(doc_id, t) for t in parsed.required
             ):
                 continue
 
             # Phrase filtering
-            if parsed.phrases and self._state:
-                doc_tokens = self._state.get_document_tokens(doc_id)
+            if parsed.phrases:
+                if self._state:
+                    doc_tokens = self._state.get_document_tokens(doc_id)
+                else:
+                    doc_tokens = []
                 if not self._matches_phrases(doc_tokens, parsed.phrases):
                     continue
 
-            result = self._ranking.score(
-                query_tokens=query_tokens,
-                index=self._index,
-                doc_id=doc_id,
-            )
+            result = self._ranking.score(query_tokens=query_tokens, index=self._index, doc_id=doc_id)
 
             if result.score > 0.0:
                 scores[doc_id] = result
 
-        # Sort by score descending, limit results
-        return sorted(
-            scores.items(),
-            key=lambda item: item[1].score,
-            reverse=True,
-        )[:limit]
+        return sorted(scores.items(), key=lambda x: x[1].score, reverse=True)[:limit]
 
     def _candidate_documents(self, query_tokens: List[str]) -> Iterable[int]:
-        """Return a set of candidate document IDs matching any query token."""
         candidates = set()
         for token in query_tokens:
             for doc_id, _ in self._index.get_postings(token):
@@ -140,15 +134,11 @@ class SearchEngine:
         return candidates
 
     def _on_index_change(self, doc_id: int) -> None:
-        """Hook for persistence, caching, logging (called on every index change)."""
+        # Hook for caching invalidation, logging, persistence
         pass
 
     @staticmethod
-    def _matches_phrases(
-        tokens: List[str],
-        phrases: List[List[str]],
-    ) -> bool:
-        """Check if all phrases appear in the token list."""
+    def _matches_phrases(tokens: List[str], phrases: List[List[str]]) -> bool:
         for phrase in phrases:
             plen = len(phrase)
             found = False
