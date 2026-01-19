@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from typing import List, Optional
+from typing import List, Optional, Dict, Iterable
 
 
 class Tokenizer:
@@ -32,6 +32,30 @@ class Tokenizer:
             return self._generate_ngrams(tokens)
 
         return tokens
+    
+    def tokenize_record(
+        self,
+        record: Dict,
+        *,
+        fields: Optional[Iterable[str]] = None,
+    ) -> List[str]:
+        """
+        Tokenize a record dictionary by concatenating selected fields.
+        """
+        texts: List[str] = []
+
+        if fields:
+            for field in fields:
+                value = record.get(field)
+                if isinstance(value, str):
+                    texts.append(value)
+        else:
+            for value in record.values():
+                if isinstance(value, str):
+                    texts.append(value)
+
+        combined = " ".join(texts)
+        return self.tokenize(combined)
 
     def _generate_ngrams(self, tokens: List[str]) -> List[str]:
         n = self.ngram
