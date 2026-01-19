@@ -81,7 +81,9 @@ class SearchEngine:
         from scout.search.query import parse_query
 
         parsed = parse_query(query)
-        query_tokens = list(parsed.include | parsed.optional)
+
+        # Tokens used for ranking
+        query_tokens = list(parsed.required | parsed.optional)
 
         if not query_tokens:
             return []
@@ -89,13 +91,28 @@ class SearchEngine:
         scores: Dict[int, RankingResult] = {}
 
         for doc_id in self._candidate_documents(query_tokens):
-            # Exclusion filter
+            # Exclusions
             if parsed.exclude:
                 if any(
                     self._index.document_contains(doc_id, token)
                     for token in parsed.exclude
                 ):
                     continue
+
+            # Required terms
+            if parsed.required:
+                if not all(
+                    self._index.document_contains(doc_id, token)
+                    for token in parsed.required
+                ):
+                    continue
+
+            # Phrase filtering
+            if parsed.phrases:
+                doc_tokens = self._index.document_tokens(doc_id)
+                if not _matches_phrases(doc_tokens, parsed.phrases):
+                    continue
+
             result = self._ranking.score(
                 query_tokens=query_tokens,
                 index=self._index,
@@ -122,3 +139,19 @@ class SearchEngine:
     def _on_index_change(self, doc_id: int) -> None:
         # Hook for caching invalidation, persistence, logging, intentionally empty
         pass
+
+    def _matches_phrases(
+        tokens: List[str],
+        phrases: List[List[str]],
+    ) -> bool:
+        for phrase in phrases:
+            plen = len(phrase)
+            found = False
+            for i in range(len(tokens) - plen + 1):
+                if tokens[i : i + plen] == phrase:
+                    found = True
+                    break
+            if not found:
+                return False
+        return True
+
