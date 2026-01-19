@@ -45,7 +45,7 @@ class SearchEngine:
         field_weights: Optional[Dict[str, float]] = None,
     ) -> "SearchEngine":
         builder = IndexBuilder(fields=fields, ngram=ngram)
-        index = builder.build(records)
+        index = builder.build(records, field_weights=field_weights)
         tokenizer = Tokenizer(ngram=ngram)
 
         if state:
@@ -67,16 +67,16 @@ class SearchEngine:
         fields: Optional[List[str]] = None,
     ) -> None:
         """
-        Incrementally add a document to the index.
+        Incrementally add a document to the index, supporting field weighting.
         """
-        tokens = []
-        used_fields = fields or self._field_weights.keys() or ["text"]
+        tokens: List[str] = []
+        used_fields = fields or list(self._field_weights.keys()) or ["text"]
         for field in used_fields:
             field_text = str(record.get(field, ""))
             weight = self._field_weights.get(field, 1.0)
             field_tokens = self._tokenizer.tokenize(field_text)
-            # Repeat tokens according to field weight
             tokens.extend(field_tokens * int(weight))
+
         if self._state:
             self._state.add_document(doc_id, tokens, metadata=record)
         else:
@@ -124,6 +124,7 @@ class SearchEngine:
             if result.score > 0.0:
                 scores[doc_id] = result
 
+        # Sort descending by score
         return sorted(scores.items(), key=lambda x: x[1].score, reverse=True)[:limit]
 
     def _candidate_documents(self, query_tokens: List[str]) -> Iterable[int]:
@@ -131,7 +132,7 @@ class SearchEngine:
         for token in query_tokens:
             for doc_id, _ in self._index.get_postings(token):
                 candidates.add(doc_id)
-        return candidates
+        return sorted(candidates)  # deterministic order
 
     def _on_index_change(self, doc_id: int) -> None:
         # Hook for caching invalidation, logging, persistence
@@ -141,11 +142,7 @@ class SearchEngine:
     def _matches_phrases(tokens: List[str], phrases: List[List[str]]) -> bool:
         for phrase in phrases:
             plen = len(phrase)
-            found = False
-            for i in range(len(tokens) - plen + 1):
-                if tokens[i : i + plen] == phrase:
-                    found = True
-                    break
+            found = any(tokens[i:i+plen] == phrase for i in range(len(tokens) - plen + 1))
             if not found:
                 return False
         return True
