@@ -2,25 +2,28 @@
 
 import argparse
 import json
-
 from scout.search.engine import SearchEngine
 from scout.ranking.robust import RobustRanking
 from scout.ranking.bm25 import BM25Ranking
+from scout.ranking.fusion import FusionRanking
 from scout.explain import explain_query
 from scout.benchmark import benchmark_engine
 from scout.state.signals import IndexState
 from scout.state.persistence import AutoSaver
 
-
 RANKINGS = {
     "robust": RobustRanking,
     "bm25": BM25Ranking,
+    # Fusion example: combines BM25 + Robust
+    "fusion": lambda: FusionRanking(
+        strategies=[BM25Ranking(), RobustRanking()],
+        weights=[0.5, 0.5]
+    ),
 }
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="ScoutSearch CLI")
-
     parser.add_argument("--records-file", type=str, required=True)
     parser.add_argument("--query", type=str, required=True)
     parser.add_argument("--ranking", choices=RANKINGS.keys(), default="robust")
@@ -36,11 +39,9 @@ def main() -> None:
 
     ranking = RANKINGS[args.ranking]()
 
-    # ---- State & persistence FIRST ----
     state = IndexState()
     AutoSaver(state)
 
-    # ---- Build engine once ----
     engine = SearchEngine.from_records(
         records,
         ranking=ranking,
