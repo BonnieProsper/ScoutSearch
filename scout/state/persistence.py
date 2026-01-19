@@ -6,7 +6,9 @@ from scout.state.signals import IndexState
 
 class AutoSaver:
     """
-    Automatically persists index when it changes.
+    Automatically persists the index whenever it changes.
+
+    This is intentionally decoupled from SearchEngine.
     """
 
     def __init__(self, state: IndexState):
@@ -14,4 +16,5 @@ class AutoSaver:
         self._state.on_change.subscribe(self._on_change)
 
     def _on_change(self, doc_id: int) -> None:
+        # Persist entire index snapshot (atomic save)
         Store.save(self._state.index)

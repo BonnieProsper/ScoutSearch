@@ -89,7 +89,7 @@ class SearchEngine:
         scores: Dict[int, RankingResult] = {}
 
         for doc_id in self._candidate_documents(query_tokens):
-            # Exclusion filter (CORRECT)
+            # Exclusion filter
             if parsed.exclude:
                 if any(
                     self._index.document_contains(doc_id, token)
@@ -120,5 +120,5 @@ class SearchEngine:
         return candidates
 
     def _on_index_change(self, doc_id: int) -> None:
-        # Hook for caching, persistence, logging
+        # Hook for caching invalidation, persistence, logging, intentionally empty
         pass
