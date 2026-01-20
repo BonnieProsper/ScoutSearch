@@ -3,3 +3,5 @@ __pycache__/
 *.pyc
 datasets/**/raw.*
 datasets/**/full.*
+datasets/**/test.csv
+datasets/**/out.jsonl
