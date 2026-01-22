@@ -1,0 +1,22 @@
+{
+  "name": "example-benchmark",
+  "index": {
+    "dataset_path": "data/records.jsonl",
+    "id_field": "id",
+    "content_field": "text",
+    "metadata_fields": ["title", "date"],
+    "limit": 1000
+  },
+  "ranking": "bm25",
+  "k": 10,
+  "queries": [
+    {
+      "query": "machine learning",
+      "relevant_doc_ids": ["doc1", "doc23"]
+    },
+    {
+      "query": "data science",
+      "relevant_doc_ids": ["doc5"]
+    }
+  ]
+}
