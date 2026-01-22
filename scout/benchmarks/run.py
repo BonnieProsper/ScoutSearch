@@ -1,25 +1,13 @@
+# scout/benchmarks/run.py
+
 from __future__ import annotations
 
 from dataclasses import dataclass
 from time import perf_counter
-from typing import Iterable, List, Protocol
+from typing import Iterable, List
 
-from scout.benchmarks.index import BenchmarkIndex, BenchmarkRecord
-
-
-class SearchEngine(Protocol):
-    """
-    Minimal interface required for benchmarking.
-    """
-
-    def index(self, records: Iterable[BenchmarkRecord]) -> None:
-        ...
-
-    def search(self, query: str, *, k: int) -> List[str]:
-        """
-        Returns ordered list of doc_ids.
-        """
-        ...
+from scout.benchmarks.index import BenchmarkIndex
+from scout.search.engine import SearchEngine
 
 
 @dataclass(frozen=True)
@@ -43,22 +31,26 @@ def run_benchmark(
     k: int,
 ) -> List[BenchmarkResult]:
     """
-    Run a deterministic benchmark.
-    """
-    engine.index(index.records)
+    Run a deterministic benchmark against an already-built SearchEngine.
 
+    Assumptions:
+    - engine has already indexed `index.records`
+    - ordering of results is meaningful
+    """
     results: List[BenchmarkResult] = []
 
     for q in queries:
         start = perf_counter()
-        retrieved = engine.search(q.query, k=k)
-        elapsed_ms = (perf_counter() - start) * 1000
+        hits = engine.search(q.query, limit=k)
+        latency_ms = (perf_counter() - start) * 1000.0
+
+        retrieved_ids = [str(doc_id) for doc_id, _ in hits]
 
         results.append(
             BenchmarkResult(
                 query=q.query,
-                retrieved=retrieved,
-                latency_ms=elapsed_ms,
+                retrieved=retrieved_ids,
+                latency_ms=latency_ms,
             )
         )
 

@@ -1,8 +1,8 @@
+# scout/benchmarks/metrics.py
+
 from __future__ import annotations
 
 from typing import Iterable, List
-
-from scout.benchmarks.run import BenchmarkQuery, BenchmarkResult
 
 
 def precision_at_k(
