@@ -19,6 +19,7 @@ from scout.benchmarks.index import build_benchmark_index
 from scout.benchmarks.run import run_benchmark, BenchmarkQuery
 from scout.benchmarks.metrics import precision_at_k, recall_at_k, mean_reciprocal_rank
 from scout.benchmarks.utils import export_benchmark_results, aggregate_metrics
+from scout.benchmarks.regression import detect_regression
 
 # ---------------- Rankings ---------------- #
 RANKINGS = {
@@ -67,6 +68,8 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--seed", type=int, default=42)
     run.add_argument("--repeats", type=int, default=3)
     run.add_argument("--warmup", type=int, default=1)
+    run.add_argument("--previous", type=Path, help="Previous benchmark JSON for regression detection")
+
 
     return parser
 
@@ -159,6 +162,11 @@ def cmd_benchmark_run(args: argparse.Namespace) -> None:
     if args.output:
         export_benchmark_results(results, args.output)
         print(f"Benchmark exported to {args.output}.json/.csv")
+
+    # Regression detection
+    if args.previous:
+        detect_regression(new_results=results, queries=queries, previous_results_file=args.previous, k=cfg["k"])
+
 
 # ---------------- Main ---------------- #
 def main() -> None:
