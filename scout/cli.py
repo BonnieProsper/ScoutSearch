@@ -32,7 +32,7 @@ RANKINGS = {
     ),
 }
 
-# ---------------- CLI ---------------- #
+# ---------------- CLI Parser ---------------- #
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser("scout", description="ScoutSearch CLI")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -69,7 +69,6 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--repeats", type=int, default=3)
     run.add_argument("--warmup", type=int, default=1)
     run.add_argument("--previous", type=Path, help="Previous benchmark JSON for regression detection")
-
 
     return parser
 
@@ -144,7 +143,7 @@ def cmd_benchmark_run(args: argparse.Namespace) -> None:
         repeats=args.repeats,
     )
 
-    # Print per-query metrics
+    # Per-query metrics
     for q, r in zip(queries, results):
         print(f"\nQuery: {q.query}")
         print(f"P@{cfg['k']}: {precision_at_k(retrieved=r.retrieved, relevant=q.relevant_doc_ids, k=cfg['k']):.3f}")
@@ -158,7 +157,7 @@ def cmd_benchmark_run(args: argparse.Namespace) -> None:
     for k, v in agg.items():
         print(f"{k}: {v:.4f}")
 
-    # Export if requested
+    # Export results
     if args.output:
         export_benchmark_results(results, args.output)
         print(f"Benchmark exported to {args.output}.json/.csv")
@@ -166,7 +165,6 @@ def cmd_benchmark_run(args: argparse.Namespace) -> None:
     # Regression detection
     if args.previous:
         detect_regression(new_results=results, queries=queries, previous_results_file=args.previous, k=cfg["k"])
-
 
 # ---------------- Main ---------------- #
 def main() -> None:
