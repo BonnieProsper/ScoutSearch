@@ -117,6 +117,7 @@ def main() -> None:
                     doc = json.loads(cmd[4:].strip())
                     engine.add_document(doc["id"], doc)
                     print(f"Added doc {doc['id']}.")
+                    print("Interactive add is experimental; document will be indexed using default fields.")
                 except Exception as e:
                     print(f"Error adding document: {e}")
             else:
