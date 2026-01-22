@@ -1,9 +1,7 @@
+# scout/cli.py
 from __future__ import annotations
-
 import argparse
 import json
-import random
-import time
 from pathlib import Path
 from typing import Optional
 
@@ -17,20 +15,12 @@ from scout.state.signals import IndexState
 from scout.state.persistence import AutoSaver
 from scout.data.loader import load_records
 
-# ---- Benchmark imports ----
 from scout.benchmarks.index import build_benchmark_index
-from scout.benchmarks.run import (
-    run_benchmark,
-    BenchmarkQuery,
-)
-from scout.benchmarks.metrics import (
-    precision_at_k,
-    recall_at_k,
-    mean_reciprocal_rank,
-)
+from scout.benchmarks.run import run_benchmark, BenchmarkQuery
+from scout.benchmarks.metrics import precision_at_k, recall_at_k, mean_reciprocal_rank
+from scout.benchmarks.utils import export_benchmark_results, aggregate_metrics
 
 # ---------------- Rankings ---------------- #
-
 RANKINGS = {
     "robust": RobustRanking,
     "bm25": BM25Ranking,
@@ -41,16 +31,13 @@ RANKINGS = {
     ),
 }
 
-
 # ---------------- CLI ---------------- #
-
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser("scout", description="ScoutSearch CLI")
-
     sub = parser.add_subparsers(dest="command", required=True)
 
-    # ---------- SEARCH ---------- #
-    search = sub.add_parser("search", help="Run a search query")
+    # SEARCH
+    search = sub.add_parser("search")
     search.add_argument("--records-file", type=Path, required=True)
     search.add_argument("--limit-docs", type=int)
     search.add_argument("--ranking", choices=RANKINGS, default="robust")
@@ -60,31 +47,30 @@ def build_parser() -> argparse.ArgumentParser:
     search.add_argument("--field-weights", type=str)
     search.add_argument("--persist", type=Path)
 
-    # ---------- INTERACTIVE ---------- #
-    interactive = sub.add_parser("interactive", help="Interactive search shell")
+    # INTERACTIVE
+    interactive = sub.add_parser("interactive")
     interactive.add_argument("--records-file", type=Path, required=True)
     interactive.add_argument("--ranking", choices=RANKINGS, default="robust")
 
-    # ---------- BENCHMARK ---------- #
-    bench = sub.add_parser("benchmark", help="Benchmark tools")
-    bench_sub = bench.add_subparsers(dest="bench_cmd", required=True)
+    # BENCHMARK
+    benchmark = sub.add_parser("benchmark")
+    bench_sub = benchmark.add_subparsers(dest="bench_cmd", required=True)
 
-    # build index
-    build = bench_sub.add_parser("index", help="Build benchmark index")
+    # Build index
+    build = bench_sub.add_parser("index")
     build.add_argument("--config", type=Path, required=True)
 
-    # run benchmark
-    run = bench_sub.add_parser("run", help="Run benchmark")
+    # Run benchmark
+    run = bench_sub.add_parser("run")
     run.add_argument("--config", type=Path, required=True)
+    run.add_argument("--output", type=Path, help="Export benchmark results (JSON/CSV)")
     run.add_argument("--seed", type=int, default=42)
     run.add_argument("--repeats", type=int, default=3)
     run.add_argument("--warmup", type=int, default=1)
 
     return parser
 
-
-# ---------------- Commands ---------------- #
-
+# ---------------- Engine Builder ---------------- #
 def build_engine(
     *,
     records_file: Path,
@@ -94,23 +80,14 @@ def build_engine(
     persist: Optional[Path] = None,
 ) -> SearchEngine:
     records = list(load_records(records_file, limit=limit_docs))
-
     ranking = RANKINGS[ranking_name]()
     state = IndexState()
-
     if persist:
         AutoSaver(state)
-
     weights = json.loads(field_weights) if field_weights else None
+    return SearchEngine.from_records(records, ranking=ranking, state=state, field_weights=weights)
 
-    return SearchEngine.from_records(
-        records,
-        ranking=ranking,
-        state=state,
-        field_weights=weights,
-    )
-
-
+# ---------------- Commands ---------------- #
 def cmd_search(args: argparse.Namespace) -> None:
     engine = build_engine(
         records_file=args.records_file,
@@ -119,37 +96,20 @@ def cmd_search(args: argparse.Namespace) -> None:
         field_weights=args.field_weights,
         persist=args.persist,
     )
-
     query = input("Query: ")
     results = engine.search(query, limit=args.limit)
-
     if args.explain:
         results = explain_query(engine, query, limit=args.limit)
-
     if args.json:
-        print(json.dumps([
-            {
-                "doc_id": doc_id,
-                "score": r.score,
-                "components": r.components,
-                "per_term": r.per_term,
-            }
-            for doc_id, r in results
-        ], indent=2))
+        print(json.dumps([{"doc_id": doc_id, "score": r.score, "components": r.components, "per_term": r.per_term} for doc_id, r in results], indent=2))
         return
-
     for doc_id, r in results:
         print(f"{doc_id}  score={r.score:.4f}")
         if r.per_term:
             print(f"  per_term={r.per_term}")
 
-
 def cmd_interactive(args: argparse.Namespace) -> None:
-    engine = build_engine(
-        records_file=args.records_file,
-        ranking_name=args.ranking,
-    )
-
+    engine = build_engine(records_file=args.records_file, ranking_name=args.ranking)
     print("Interactive mode. Type 'exit' to quit.")
     while True:
         q = input(">> ").strip()
@@ -158,32 +118,20 @@ def cmd_interactive(args: argparse.Namespace) -> None:
         for doc_id, r in engine.search(q):
             print(f"{doc_id}: {r.score:.4f}")
 
-
 def cmd_benchmark_index(args: argparse.Namespace) -> None:
-    config = json.loads(args.config.read_text())
-    build_benchmark_index(**config)
+    cfg = json.loads(args.config.read_text())
+    build_benchmark_index(**cfg["index"])
     print("Benchmark index built.")
-
 
 def cmd_benchmark_run(args: argparse.Namespace) -> None:
     cfg = json.loads(args.config.read_text())
-
     index = build_benchmark_index(**cfg["index"])
-
-    queries = [
-        BenchmarkQuery(
-            query=q["query"],
-            relevant_doc_ids=frozenset(q["relevant_doc_ids"]),
-        )
-        for q in cfg["queries"]
-    ]
-
+    queries = [BenchmarkQuery(query=q["query"], relevant_doc_ids=frozenset(q["relevant_doc_ids"])) for q in cfg["queries"]]
     engine = build_engine(
         records_file=Path(cfg["index"]["dataset_path"]),
         ranking_name=cfg.get("ranking", "robust"),
         limit_docs=cfg["index"].get("limit"),
     )
-
     results = run_benchmark(
         engine=engine,
         index=index,
@@ -193,26 +141,29 @@ def cmd_benchmark_run(args: argparse.Namespace) -> None:
         repeats=args.repeats,
     )
 
+    # Print per-query metrics
     for q, r in zip(queries, results):
         print(f"\nQuery: {q.query}")
-        print(
-            f"P@{cfg['k']}: "
-            f"{precision_at_k(retrieved=r.retrieved, relevant=q.relevant_doc_ids, k=cfg['k']):.3f}"
-        )
-        print(
-            f"R@{cfg['k']}: "
-            f"{recall_at_k(retrieved=r.retrieved, relevant=q.relevant_doc_ids, k=cfg['k']):.3f}"
-        )
-        print(
-            f"MRR: "
-            f"{mean_reciprocal_rank(retrieved=r.retrieved, relevant=q.relevant_doc_ids):.3f}"
-        )
+        print(f"P@{cfg['k']}: {precision_at_k(retrieved=r.retrieved, relevant=q.relevant_doc_ids, k=cfg['k']):.3f}")
+        print(f"R@{cfg['k']}: {recall_at_k(retrieved=r.retrieved, relevant=q.relevant_doc_ids, k=cfg['k']):.3f}")
+        print(f"MRR: {mean_reciprocal_rank(retrieved=r.retrieved, relevant=q.relevant_doc_ids):.3f}")
         print(f"Latency(ms): {r.latency_ms:.2f}")
 
+    # Aggregate metrics
+    agg = aggregate_metrics(results, queries, cfg["k"])
+    print("\n--- Aggregated Metrics ---")
+    for k, v in agg.items():
+        print(f"{k}: {v:.4f}")
+
+    # Export if requested
+    if args.output:
+        export_benchmark_results(results, args.output)
+        print(f"Benchmark exported to {args.output}.json/.csv")
+
+# ---------------- Main ---------------- #
 def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
-
     if args.command == "search":
         cmd_search(args)
     elif args.command == "interactive":
@@ -222,7 +173,6 @@ def main() -> None:
             cmd_benchmark_index(args)
         elif args.bench_cmd == "run":
             cmd_benchmark_run(args)
-
 
 if __name__ == "__main__":
     main()
