@@ -1,8 +1,9 @@
+# scout/benchmarks/index.py
 from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Iterable, Iterator, List, Optional, Sequence, Tuple
+from typing import Dict, List, Optional, Sequence, Tuple
 
 from scout.data.loader import load_records
 
@@ -12,7 +13,7 @@ class BenchmarkRecord:
     """
     Canonical record used for benchmarking.
 
-    This is intentionally minimal and deterministic.
+    Intentionally minimal, immutable, and deterministic.
     """
     doc_id: str
     content: str
@@ -40,10 +41,10 @@ def build_benchmark_index(
     """
     Build a deterministic benchmark index from a dataset.
 
-    Rules:
-    - Ordering is stable (input order)
-    - IDs must be unique
-    - All fields are copied explicitly
+    Guarantees:
+    - Stable ordering (input order)
+    - Unique document IDs
+    - Explicit field copying
     """
     raw_records = load_records(dataset_path, limit=limit)
 

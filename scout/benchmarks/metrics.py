@@ -10,7 +10,7 @@ def precision_at_k(*, retrieved: List[str], relevant: Iterable[str], k: int) -> 
     if k == 0:
         return 0.0
     hits = sum(1 for doc_id in retrieved[:k] if doc_id in relevant_set)
-    return hits / k
+    return float(hits / k)
 
 
 def recall_at_k(*, retrieved: List[str], relevant: Iterable[str], k: int) -> float:
@@ -18,19 +18,18 @@ def recall_at_k(*, retrieved: List[str], relevant: Iterable[str], k: int) -> flo
     if not relevant_set:
         return 0.0
     hits = sum(1 for doc_id in retrieved[:k] if doc_id in relevant_set)
-    return hits / len(relevant_set)
+    return float(hits / len(relevant_set))
 
 
 def mean_reciprocal_rank(*, retrieved: List[str], relevant: Iterable[str]) -> float:
     relevant_set = set(relevant)
     for rank, doc_id in enumerate(retrieved, start=1):
         if doc_id in relevant_set:
-            return 1.0 / rank
+            return float(1.0 / rank)
     return 0.0
 
 
 def average_precision(*, retrieved: List[str], relevant: Iterable[str], k: int) -> float:
-    """Compute average precision at k for a single query."""
     relevant_set = set(relevant)
     if not relevant_set:
         return 0.0
@@ -40,36 +39,26 @@ def average_precision(*, retrieved: List[str], relevant: Iterable[str], k: int) 
         if doc_id in relevant_set:
             hits += 1
             score += hits / i
-    return score / min(len(relevant_set), k)
-
-
-def mean_average_precision(*, retrieved_list: List[List[str]], relevant_list: List[Iterable[str]], k: int) -> float:
-    return np.mean([
-        average_precision(retrieved=r, relevant=rel, k=k)
-        for r, rel in zip(retrieved_list, relevant_list)
-    ])
+    return float(score / min(len(relevant_set), k))
 
 
 def ndcg_at_k(*, retrieved: List[str], relevant: Iterable[str], k: int) -> float:
-    """Normalized Discounted Cumulative Gain at k."""
     relevant_set = set(relevant)
     dcg = 0.0
     for i, doc_id in enumerate(retrieved[:k], start=1):
         if doc_id in relevant_set:
             dcg += 1 / math.log2(i + 1)
-    # Ideal DCG
     ideal_hits = min(len(relevant_set), k)
     idcg = sum(1 / math.log2(i + 1) for i in range(1, ideal_hits + 1))
-    return dcg / idcg if idcg > 0 else 0.0
+    return float(dcg / idcg) if idcg > 0 else 0.0
 
 
 def f1_at_k(*, retrieved: List[str], relevant: Iterable[str], k: int) -> float:
     p = precision_at_k(retrieved=retrieved, relevant=relevant, k=k)
     r = recall_at_k(retrieved=retrieved, relevant=relevant, k=k)
-    return 2 * p * r / (p + r) if (p + r) > 0 else 0.0
+    return float(2 * p * r / (p + r)) if (p + r) > 0 else 0.0
 
 
 def latency_percentiles(latencies_ms: List[float], percentiles: List[int] = [50, 95, 99]) -> Dict[int, float]:
-    """Return latency percentiles in ms."""
-    arr = np.array(latencies_ms)
+    arr = np.array(latencies_ms, dtype=float)
     return {p: float(np.percentile(arr, p)) for p in percentiles}
