@@ -6,3 +6,4 @@ datasets/**/full.*
 datasets/**/test.csv
 datasets/**/out.jsonl
 TODO.txt
+scoutsearch.egg-info/
