@@ -5,8 +5,8 @@ from scout.explain import explain_query
 
 def test_explainability_contains_all_tokens():
     records = [
-        {"text": "apple banana"},
-        {"text": "apple orange"},
+        {"id": "1", "text": "apple banana"},
+        {"id": "2", "text": "apple orange"},
     ]
 
     engine = SearchEngine.from_records(
@@ -22,11 +22,11 @@ def test_explainability_contains_all_tokens():
         assert "apple" in result.per_term
         assert "banana" in result.per_term
 
+
 def test_explain_query_does_not_mutate_results(engine):
-    original = engine.search("test", limit=3)
-    explained = explain_query(engine, "test", limit=3)
+    original = engine.search("apple", limit=3)
+    explained = explain_query(engine, "apple", limit=3)
 
     for (_, o), (_, e) in zip(original, explained):
         assert o is not e
         assert o.score == e.score
-

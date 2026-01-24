@@ -1,0 +1,67 @@
+{
+  "metadata": {
+    "name": "abc_news_robust",
+    "index": {
+      "dataset_path": "datasets/abc_news/sample.jsonl",
+      "id_field": "id",
+      "content_field": "text",
+      "metadata_fields": [
+        "date",
+        "source"
+      ],
+      "limit": 1000
+    },
+    "ranking": {
+      "type": "robust",
+      "params": {
+        "tf_weight": 0.4,
+        "tfidf_weight": 0.6
+      },
+      "recency": {}
+    },
+    "benchmark": {
+      "k": 10,
+      "warmup": 2,
+      "repeats": 5,
+      "seed": 42
+    },
+    "queries": [
+      {
+        "query": "machine learning",
+        "relevant_doc_ids": [
+          "abc_20030219_0000001",
+          "abc_20030219_0000003"
+        ]
+      },
+      {
+        "query": "data science",
+        "relevant_doc_ids": [
+          "abc_20030219_0000005"
+        ]
+      }
+    ],
+    "output": "data/benchmarks/abc_news_robust.json"
+  },
+  "results": [
+    {
+      "query": "machine learning",
+      "retrieved": [],
+      "latency_ms": 0.012940005399286747,
+      "latency_stats": {
+        "50": 0.013400043826550245,
+        "95": 0.01696001272648573,
+        "99": 0.017552017234265804
+      }
+    },
+    {
+      "query": "data science",
+      "retrieved": [],
+      "latency_ms": 0.009459990542382002,
+      "latency_stats": {
+        "50": 0.009400013368576765,
+        "95": 0.01019997289404273,
+        "99": 0.010359964799135923
+      }
+    }
+  ]
+}

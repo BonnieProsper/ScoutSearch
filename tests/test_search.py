@@ -17,11 +17,28 @@ from scout.explain import explain_query
 
 @pytest.fixture
 def sample_records():
+    now = datetime.now()
     return [
-        {"id": 1, "title": "Quick brown fox", "text": "jumps over the lazy dog", "timestamp": datetime.now().isoformat()},
-        {"id": 2, "title": "Lazy dog", "text": "sleeps all day", "timestamp": (datetime.now() - timedelta(days=10)).isoformat()},
-        {"id": 3, "title": "Fast fox", "text": "runs quickly", "timestamp": (datetime.now() - timedelta(days=30)).isoformat()},
+        {
+            "id": 1,
+            "title": "Quick brown fox",
+            "text": "the quick brown fox jumps over the lazy dog",
+            "timestamp": now.isoformat(),
+        },
+        {
+            "id": 2,
+            "title": "Lazy dog",
+            "text": "the lazy dog sleeps all day",
+            "timestamp": (now - timedelta(days=10)).isoformat(),
+        },
+        {
+            "id": 3,
+            "title": "Fast fox",
+            "text": "fast fox runs quickly",
+            "timestamp": (now - timedelta(days=30)).isoformat(),
+        },
     ]
+
 
 
 @pytest.mark.parametrize("ranking_cls", [RobustRanking, BM25Ranking])

@@ -1,5 +1,12 @@
 {
-  "dataset": "datasets/abc_news/sample.jsonl",
+  "name": "abc_news_robust",
+  "index": {
+    "dataset_path": "datasets/abc_news/sample.jsonl",
+    "id_field": "id",
+    "content_field": "text",
+    "metadata_fields": ["date", "source"],
+    "limit": 1000
+  },
   "ranking": {
     "type": "robust",
     "params": {
@@ -10,16 +17,17 @@
   "benchmark": {
     "k": 10,
     "warmup": 2,
-    "repeats": 5
+    "repeats": 5,
+    "seed": 42
   },
   "queries": [
     {
       "query": "machine learning",
-      "relevant_doc_ids": ["doc1", "doc23"]
+      "relevant_doc_ids": ["abc_20030219_0000001", "abc_20030219_0000003"]
     },
     {
       "query": "data science",
-      "relevant_doc_ids": ["doc5"]
+      "relevant_doc_ids": ["abc_20030219_0000005"]
     }
   ],
   "output": "data/benchmarks/abc_news_robust.json"
