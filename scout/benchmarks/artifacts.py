@@ -28,3 +28,10 @@ def write_benchmark_artifact(
     }
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, indent=2))
+
+# TODO: config_loader comparison
+def load_benchmark_artifact(path: Path) -> dict:
+    """Load benchmark artifact from JSON file."""
+    if not path.exists():
+        raise FileNotFoundError(f"Artifact not found: {path}")
+    return json.loads(path.read_text())

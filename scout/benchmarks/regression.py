@@ -1,49 +1,55 @@
 # scout/benchmarks/regression.py
-import json
-from pathlib import Path
-from typing import Optional
-from scout.benchmarks.utils import aggregate_metrics
+from __future__ import annotations
+from dataclasses import dataclass
+from typing import List, Dict
+from scout.benchmarks.aggregate import aggregate_metrics
+from scout.benchmarks.thresholds import RegressionThresholds
 from scout.benchmarks.run import BenchmarkResult, BenchmarkQuery
 
+@dataclass(frozen=True)
+class RegressionReport:
+    deltas: Dict[str, float]
+    failed: bool
+    reasons: List[str]
 
-def detect_regression(
-    new_results: list[BenchmarkResult],
-    queries: list[BenchmarkQuery],
-    previous_results_file: Path,
+def compare_benchmarks(
+    *,
+    baseline_results: List[BenchmarkResult],
+    candidate_results: List[BenchmarkResult],
+    queries: List[BenchmarkQuery],
     k: int,
-    threshold_drop: Optional[float] = 0.01,  # Warn if metric drops more than 1%
-) -> None:
-    """
-    Detect regressions between new benchmark and previous benchmark.
-    """
-    if not previous_results_file.exists():
-        print(f"No previous benchmark file found at {previous_results_file}. Skipping regression detection.")
-        return
+    thresholds: RegressionThresholds,
+) -> RegressionReport:
 
-    prev_data = json.loads(previous_results_file.read_text())
-    prev_results = [
-        BenchmarkResult(
-            query=d["query"],
-            retrieved=d["retrieved"],
-            latency_ms=d.get("latency_ms", 0.0)
-        ) for d in prev_data
-    ]
+    base_metrics = aggregate_metrics(results=baseline_results, queries=queries, k=k)
+    cand_metrics = aggregate_metrics(results=candidate_results, queries=queries, k=k)
 
-    prev_metrics = aggregate_metrics(prev_results, queries, k)
-    new_metrics = aggregate_metrics(new_results, queries, k)
+    deltas: Dict[str, float] = {}
+    reasons: List[str] = []
+    failed = False
 
-    print("\n--- Regression Detection ---")
-    for metric in ["P@k", "R@k", "MRR", "F1@k", "nDCG@k", "MAP@k"]:
-        prev_val = prev_metrics.get(metric, 0.0)
-        new_val = new_metrics.get(metric, 0.0)
-        drop = prev_val - new_val
-        if drop > threshold_drop:
-            print(f"WARNING: {metric} dropped by {drop:.4f} ({prev_val:.4f} → {new_val:.4f})")
-        else:
-            print(f"{metric}: {prev_val:.4f} → {new_val:.4f} (ok)")
+    # Relevance metrics
+    for metric_name, threshold in [
+        ("precision@k_mean", thresholds.min_precision_delta),
+        ("recall@k_mean", thresholds.min_recall_delta),
+        ("mrr_mean", thresholds.min_mrr_delta),
+        ("ndcg_mean", thresholds.min_ndcg_delta)  # must exist in aggregate_metrics
+    ]:
+        if metric_name not in base_metrics:
+            continue  # skip if metric not calculated
+        delta = cand_metrics[metric_name] - base_metrics[metric_name]
+        deltas[metric_name] = delta
+        if delta < threshold:
+            failed = True
+            reasons.append(f"{metric_name} regressed by {delta:.4f}")
 
-    # Optional: regression on latency
-    prev_latency = prev_metrics["latency_ms"]["p95"]
-    new_latency = new_metrics["latency_ms"]["p95"]
-    if new_latency > prev_latency * 1.05:  # 5% slower
-        print(f"WARNING: 95th percentile latency increased from {prev_latency:.2f}ms → {new_latency:.2f}ms")
+    # Latency
+    base_latency = base_metrics.get("latency_ms_mean", 0.0)
+    cand_latency = cand_metrics.get("latency_ms_mean", 0.0)
+    delta_latency = cand_latency - base_latency
+    deltas["latency_ms_mean"] = delta_latency
+    if delta_latency > thresholds.max_latency_regression_ms:
+        failed = True
+        reasons.append(f"Latency regressed by {delta_latency:.2f}ms ({base_latency:.2f} → {cand_latency:.2f})")
+
+    return RegressionReport(deltas=deltas, failed=failed, reasons=reasons)

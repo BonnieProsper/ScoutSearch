@@ -190,3 +190,19 @@ tf_only       | avg: 40.12 µs
 * Deterministic, measurable, production-oriented
 * Fully testable and benchmarked
 * CLI-first, ready for real-world operational use
+
+
+# ScoutSearch Regression Benchmark
+
+1. Run a benchmark:
+   $ scout benchmark --config benchmarks/configs/example_benchmark.json
+   Output: benchmarks/main.json
+
+2. Run a regression test:
+   $ scout benchmark-regress --baseline benchmarks/main.json --candidate benchmarks/pr.json
+
+3. Exit codes:
+   0 → PASS
+   2 → Relevance regression
+   3 → Latency regression
+   4 → Both
