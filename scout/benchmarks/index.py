@@ -28,6 +28,14 @@ class BenchmarkIndex:
     name: str
     records: Tuple[BenchmarkRecord, ...]
 
+    def __len__(self) -> int:
+        return len(self.records)
+    
+    def doc_ids(self) -> set[str]:
+        return {r.doc_id for r in self.records}
+
+
+
 
 def build_benchmark_index(
     *,
@@ -80,3 +88,9 @@ def build_benchmark_index(
         name=name,
         records=tuple(records),  # frozen for determinism
     )
+
+# TO ADD
+"""
+if not records:
+    raise ValueError("Benchmark index is empty")
+"""

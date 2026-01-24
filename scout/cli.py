@@ -18,11 +18,11 @@ from scout.ranking.bm25 import BM25Ranking
 from scout.ranking.composite import CompositeRanking
 from scout.ranking.recency import RecencyRanking
 
-from scout.benchmarks.config_loader import load_benchmark_config
+from scout.benchmarks.index import build_benchmark_index
 from scout.benchmarks.run import run_benchmark, BenchmarkQuery
 from scout.benchmarks.aggregate import aggregate_metrics
 from scout.benchmarks.artifacts import write_benchmark_artifact
-from scout.benchmarks.index import build_benchmark_index
+from scout.benchmarks.config_loader import load_benchmark_config
 
 console = Console()
 
@@ -46,7 +46,7 @@ def build_ranking(cfg: dict):
     raise ValueError(f"Unknown ranking type: {rtype}")
 
 
-def build_engine(records_file: Path, ranking):
+def build_engine(records_file: Path, ranking) -> SearchEngine:
     records = list(load_records(records_file))
     return SearchEngine.from_records(records, ranking=ranking)
 
@@ -114,51 +114,47 @@ def cmd_benchmark(args) -> int:
         console.print(f"[red]Invalid benchmark config:[/red] {e}")
         return 1
 
-    cfg = load_benchmark_config(args.config)
-
-    # Build benchmark index (authoritative corpus snapshot)
+    # Build benchmark index (authoritative snapshot)
     index = build_benchmark_index(
-        name=cfg["name"],
-        dataset_path=cfg["index"]["dataset_path"],
-        id_field=cfg["index"]["id_field"],
-        content_field=cfg["index"]["content_field"],
-        metadata_fields=cfg["index"].get("metadata_fields"),
-        limit=cfg["index"].get("limit"),
+        name=cfg.name,
+        dataset_path=cfg.index.dataset_path,
+        id_field=cfg.index.id_field,
+        content_field=cfg.index.content_field,
+        metadata_fields=cfg.index.metadata_fields,
+        limit=cfg.index.limit,
     )
 
-    # Build search engine over same dataset
-    records = list(load_records(cfg["index"]["dataset_path"]))
-    ranking = build_ranking(cfg["ranking"])
-    engine = SearchEngine.from_records(records, ranking=ranking)
+    ranking = build_ranking(cfg.ranking.model_dump())
+    engine = build_engine(Path(cfg.index.dataset_path), ranking)
 
     queries = [
         BenchmarkQuery(
-            query=q["query"],
-            relevant_doc_ids=frozenset(q["relevant_doc_ids"]),
+            query=q.query,
+            relevant_doc_ids=frozenset(q.relevant_doc_ids),
         )
-        for q in cfg["queries"]
+        for q in cfg.queries
     ]
 
     results = run_benchmark(
         engine=engine,
-        index=index,  # ✅ FIXED — no None
+        index=index,
         queries=queries,
-        k=cfg["benchmark"]["k"],
-        warmup=cfg["benchmark"].get("warmup", 0),
-        repeats=cfg["benchmark"].get("repeats", 1),
-        seed=cfg["benchmark"].get("seed"),
+        k=cfg.benchmark.k,
+        warmup=cfg.benchmark.warmup,
+        repeats=cfg.benchmark.repeats,
+        seed=cfg.benchmark.seed,
     )
 
     metrics = aggregate_metrics(
         results=results,
         queries=queries,
-        k=cfg["benchmark"]["k"],
+        k=cfg.benchmark.k,
     )
 
     write_benchmark_artifact(
-        path=Path(cfg["output"]),
+        path=Path(cfg.output),
         results=results,
-        metadata=cfg,
+        metadata=cfg.model_dump(),
     )
 
     console.print("[bold green]Benchmark complete[/bold green]")
@@ -166,7 +162,6 @@ def cmd_benchmark(args) -> int:
         console.print(f"{k}: {v:.4f}")
 
     return 0
-
 
 
 # ---------------- Main ---------------- #
