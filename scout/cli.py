@@ -22,6 +22,7 @@ from scout.benchmarks.config_loader import load_benchmark_config
 from scout.benchmarks.run import run_benchmark, BenchmarkQuery
 from scout.benchmarks.aggregate import aggregate_metrics
 from scout.benchmarks.artifacts import write_benchmark_artifact
+from scout.benchmarks.index import build_benchmark_index
 
 console = Console()
 
@@ -113,7 +114,20 @@ def cmd_benchmark(args) -> int:
         console.print(f"[red]Invalid benchmark config:[/red] {e}")
         return 1
 
-    records = list(load_records(Path(cfg["dataset"])))
+    cfg = load_benchmark_config(args.config)
+
+    # Build benchmark index (authoritative corpus snapshot)
+    index = build_benchmark_index(
+        name=cfg["name"],
+        dataset_path=cfg["index"]["dataset_path"],
+        id_field=cfg["index"]["id_field"],
+        content_field=cfg["index"]["content_field"],
+        metadata_fields=cfg["index"].get("metadata_fields"),
+        limit=cfg["index"].get("limit"),
+    )
+
+    # Build search engine over same dataset
+    records = list(load_records(cfg["index"]["dataset_path"]))
     ranking = build_ranking(cfg["ranking"])
     engine = SearchEngine.from_records(records, ranking=ranking)
 
@@ -127,9 +141,12 @@ def cmd_benchmark(args) -> int:
 
     results = run_benchmark(
         engine=engine,
-        index=None,
+        index=index,  # ✅ FIXED — no None
         queries=queries,
-        **cfg["benchmark"],
+        k=cfg["benchmark"]["k"],
+        warmup=cfg["benchmark"].get("warmup", 0),
+        repeats=cfg["benchmark"].get("repeats", 1),
+        seed=cfg["benchmark"].get("seed"),
     )
 
     metrics = aggregate_metrics(
@@ -149,6 +166,7 @@ def cmd_benchmark(args) -> int:
         console.print(f"{k}: {v:.4f}")
 
     return 0
+
 
 
 # ---------------- Main ---------------- #
