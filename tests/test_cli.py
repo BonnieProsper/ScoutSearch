@@ -25,3 +25,6 @@ def test_cli_runs_without_error(tmp_path, capsys):
 
     captured = capsys.readouterr()
     assert captured.out or captured.err
+
+def test_cli_imports():
+    import scout.cli

@@ -1,3 +1,4 @@
+from scout.cli import build_ranking
 from scout.ranking.tf import TermFrequencyRanking
 from scout.ranking.tfidf import TFIDFRanking
 from scout.ranking.robust import RobustRanking
@@ -41,6 +42,9 @@ def test_robust_ranking():
     assert result.score > 0
     assert result.components
 
+def test_build_ranking_robust():
+    r = build_ranking({"type": "robust", "params": {}})
+    assert isinstance(r, RobustRanking)
 
 def test_bm25_ranking():
     index = _build_index()
