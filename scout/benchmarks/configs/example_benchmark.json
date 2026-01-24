@@ -1,14 +1,17 @@
 {
-  "name": "example-benchmark",
-  "index": {
-    "dataset_path": "data/records.jsonl",
-    "id_field": "id",
-    "content_field": "text",
-    "metadata_fields": ["title", "date"],
-    "limit": 1000
+  "dataset": "datasets/abc_news/sample.jsonl",
+  "ranking": {
+    "type": "robust",
+    "params": {
+      "tf_weight": 0.4,
+      "tfidf_weight": 0.6
+    }
   },
-  "ranking": "bm25",
-  "k": 10,
+  "benchmark": {
+    "k": 10,
+    "warmup": 2,
+    "repeats": 5
+  },
   "queries": [
     {
       "query": "machine learning",
@@ -18,5 +21,6 @@
       "query": "data science",
       "relevant_doc_ids": ["doc5"]
     }
-  ]
+  ],
+  "output": "data/benchmarks/abc_news_robust.json"
 }
