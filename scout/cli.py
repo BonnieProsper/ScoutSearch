@@ -34,8 +34,10 @@ def build_ranking(cfg: dict):
 
     if rtype == "robust":
         return RobustRanking(**cfg.get("params", {}))
+
     if rtype == "bm25":
         return BM25Ranking(**cfg.get("params", {}))
+
     if rtype == "fusion":
         return CompositeRanking(
             strategies=[BM25Ranking(), RobustRanking()],
@@ -90,10 +92,11 @@ def cmd_search(args) -> int:
     )
 
     if args.json:
-        console.print_json(json.dumps([
-            {"doc_id": doc_id, "score": r.score}
-            for doc_id, r in results
-        ]))
+        console.print_json(
+            json.dumps(
+                [{"doc_id": doc_id, "score": r.score} for doc_id, r in results]
+            )
+        )
         return 0
 
     table = Table(title="Search Results")
@@ -151,13 +154,15 @@ def cmd_benchmark(args) -> int:
         k=cfg.benchmark.k,
     )
 
+    artifact_path = Path(cfg.output)
     write_benchmark_artifact(
-        path=Path(cfg.output),
+        path=artifact_path,
         results=results,
         metadata=cfg.model_dump(),
     )
 
     console.print("[bold green]Benchmark complete[/bold green]")
+    console.print(f"Artifact written to [cyan]{artifact_path}[/cyan]")
     for k, v in metrics.items():
         console.print(f"{k}: {v:.4f}")
 
@@ -172,7 +177,8 @@ def main() -> None:
 
     if args.command == "search":
         sys.exit(cmd_search(args))
-    elif args.command == "benchmark":
+
+    if args.command == "benchmark":
         sys.exit(cmd_benchmark(args))
 
 
