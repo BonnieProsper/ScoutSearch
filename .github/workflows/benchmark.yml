@@ -32,3 +32,5 @@ jobs:
       - name: Run benchmark
         run: |
           .venv\Scripts\python -m scout.cli benchmark --config benchmarks/configs/example_benchmark.json
+
+

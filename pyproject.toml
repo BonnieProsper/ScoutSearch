@@ -22,3 +22,6 @@ dev = [
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["scout*"]
+
+[tool.poetry.scripts]
+scout = "scout.cli:main"
