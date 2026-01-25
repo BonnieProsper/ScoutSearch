@@ -1,36 +1,52 @@
-# .github/workflows/benchmark.yml
-name: Benchmark
+name: Benchmarks
 
 on:
   push:
     paths:
-      - 'scout/**'
-      - 'benchmarks/**'
+      - "scout/**"
+      - "benchmarks/**"
   pull_request:
     paths:
-      - 'scout/**'
-      - 'benchmarks/**'
+      - "scout/**"
+      - "benchmarks/**"
 
 jobs:
-  run-benchmarks:
+  benchmarks:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
+      - name: Install Poetry
+        run: |
+          pip install poetry
+
       - name: Install dependencies
         run: |
-          python -m venv .venv
-          .venv\Scripts\pip install --upgrade pip
-          .venv\Scripts\pip install -e .[dev]
+          poetry install
 
-      - name: Run benchmark
+      - name: Run benchmarks
         run: |
-          .venv\Scripts\python -m scout.cli benchmark --config benchmarks/configs/example_benchmark.json
+          poetry run scout benchmark \
+            --config scout/benchmarks/configs/example_benchmark.json \
+            --output candidate.json
 
+      - name: Compare benchmarks (regression gate)
+        run: |
+          poetry run scout benchmark compare \
+            --baseline scout/benchmarks/baselines/main.json \
+            --candidate candidate.json \
+            --fail-on-regression
+
+      - name: Upload benchmark artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results
+          path: candidate.json
 
