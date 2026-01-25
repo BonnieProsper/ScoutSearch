@@ -126,3 +126,12 @@ def test_fusion_ranking_combines_scores(sample_records):
     assert results
     doc_ids = [doc_id for doc_id, _ in results]
     assert 1 in doc_ids
+
+def test_stopwords_are_removed():
+    records = [{"id": 1, "text": "the fox"}]
+    engine = SearchEngine.from_records(records, ranking=RobustRanking())
+
+    r1 = engine.search("fox")
+    r2 = engine.search("the fox")
+
+    assert r1 == r2
