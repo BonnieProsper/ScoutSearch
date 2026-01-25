@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 from typing import Dict, List, Optional
+
 from .tokens import Tokenizer
 from .inverted import InvertedIndex
 
@@ -29,15 +30,27 @@ class IndexBuilder:
         field_weights = field_weights or {f: 1.0 for f in self.fields}
 
         for record in records:
+            if not isinstance(record, dict):
+                continue
+
+            if "id" not in record:
+                continue
+
             doc_id = record["id"]
 
             all_tokens: List[str] = []
+
             for field in self.fields:
-                text = str(record.get(field, ""))
-                tokens = self.tokenizer.tokenize(text)
+                value = record.get(field)
+                if not isinstance(value, str):
+                    continue
+
+                tokens = self.tokenizer.tokenize(value)
                 weight = int(field_weights.get(field, 1))
-                # Repeat tokens based on field weight
                 all_tokens.extend(tokens * weight)
+
+            if not all_tokens:
+                continue
 
             index.add_document(
                 doc_id,
