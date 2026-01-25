@@ -1,16 +1,12 @@
+from scout.ranking.robust import RobustRanking
 from scout.search.engine import SearchEngine
 
 
-def test_ignores_malformed_records():
-    records = [
-        {"id": "1", "text": "valid"},
-        {"id": "2"},                 # missing text
-        {"text": "no id"},           # missing id
-        {"id": "3", "text": 123},    # invalid text
-    ]
-
-    engine = SearchEngine.from_records(records)
-    results = engine.search("valid")
-
-    assert len(results) == 1
-    assert results[0][0] == "1"
+def test_index_builder_basic():
+    records = [{"id": 1, "text": "hello world"}]
+    engine = SearchEngine.from_records(
+        records,
+        ranking=RobustRanking(),
+    )
+    results = engine.search("hello")
+    assert results

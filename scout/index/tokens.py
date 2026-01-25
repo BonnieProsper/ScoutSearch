@@ -1,61 +1,63 @@
-# scout/index/builder.py
+# scout/index/tokens.py
 
 from __future__ import annotations
-from typing import Dict, List, Optional
 
-from .tokens import Tokenizer
-from .inverted import InvertedIndex
+import re
+from typing import List, Optional, Dict, Iterable
 
 
-class IndexBuilder:
+class Tokenizer:
     """
-    Deterministically builds an inverted index from structured records.
-    Supports optional per-field weighting.
+    Deterministic tokenizer used for indexing and querying.
+
+    - Unicode-aware
+    - Lowercases text
+    - Extracts word tokens
+    - Optionally generates n-grams
     """
 
-    def __init__(
+    _token_re = re.compile(r"\w+", flags=re.UNICODE)
+
+    def __init__(self, ngram: Optional[int] = None) -> None:
+        if ngram is not None and ngram < 1:
+            raise ValueError("ngram must be >= 1")
+
+        self.ngram = ngram
+
+    def tokenize(self, text: str) -> List[str]:
+        tokens = self._token_re.findall(text.lower())
+
+        if self.ngram and self.ngram > 1:
+            return self._generate_ngrams(tokens)
+
+        return tokens
+
+    def tokenize_record(
         self,
-        fields: Optional[List[str]] = None,
-        ngram: Optional[int] = None,
-    ) -> None:
-        self.fields = fields if fields is not None else ["text"]
-        self.tokenizer = Tokenizer(ngram=ngram)
+        record: Dict,
+        *,
+        fields: Optional[Iterable[str]] = None,
+    ) -> List[str]:
+        texts: List[str] = []
 
-    def build(
-        self,
-        records: List[Dict],
-        field_weights: Optional[Dict[str, float]] = None,
-    ) -> InvertedIndex:
-        index = InvertedIndex()
-        field_weights = field_weights or {f: 1.0 for f in self.fields}
-
-        for record in records:
-            if not isinstance(record, dict):
-                continue
-
-            if "id" not in record:
-                continue
-
-            doc_id = record["id"]
-
-            all_tokens: List[str] = []
-
-            for field in self.fields:
+        if fields:
+            for field in fields:
                 value = record.get(field)
-                if not isinstance(value, str):
-                    continue
+                if isinstance(value, str):
+                    texts.append(value)
+        else:
+            for value in record.values():
+                if isinstance(value, str):
+                    texts.append(value)
 
-                tokens = self.tokenizer.tokenize(value)
-                weight = int(field_weights.get(field, 1))
-                all_tokens.extend(tokens * weight)
+        combined = " ".join(texts)
+        return self.tokenize(combined)
 
-            if not all_tokens:
-                continue
+    def _generate_ngrams(self, tokens: List[str]) -> List[str]:
+        n = self.ngram
+        assert n is not None and n > 1
 
-            index.add_document(
-                doc_id,
-                all_tokens,
-                metadata=record,
-            )
-
-        return index
+        return [
+            "_".join(tokens[i : i + n])
+            for i in range(len(tokens) - n + 1)
+        ]

@@ -56,3 +56,6 @@ class InvertedIndex:
             if posting_doc_id == doc_id:
                 return True
         return False
+    
+
+    
