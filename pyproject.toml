@@ -18,3 +18,18 @@ pytest = "^8.2"
 
 [tool.poetry.scripts]
 scout = "scout.cli:main"
+
+[mypy]
+python_version = 3.11
+strict = true
+
+warn_unused_configs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+disallow_any_generics = true
+disallow_subclassing_any = true
+no_implicit_optional = true
+check_untyped_defs = true
+
+[mypy-scout.*]
+ignore_missing_imports = false
