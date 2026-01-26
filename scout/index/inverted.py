@@ -56,6 +56,38 @@ class InvertedIndex:
             if posting_doc_id == doc_id:
                 return True
         return False
-    
 
-    
+    # ----------------------------
+    # Snapshot / persistence API
+    # ----------------------------
+
+    def to_dict(self) -> Dict:
+        """
+        Deterministic, JSON-serializable snapshot of the index.
+        """
+        return {
+            "index": {
+                term: list(postings)
+                for term, postings in self.index.items()
+            },
+            "doc_freqs": dict(self.doc_freqs),
+            "documents": self.documents,
+            "stats": self.stats.to_dict(),
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict) -> "InvertedIndex":
+        index = cls()
+
+        index.index = defaultdict(
+            list,
+            {
+                term: [tuple(p) for p in postings]
+                for term, postings in data["index"].items()
+            },
+        )
+        index.doc_freqs = defaultdict(int, data["doc_freqs"])
+        index.documents = data["documents"]
+        index.stats = IndexStats.from_dict(data["stats"])
+
+        return index

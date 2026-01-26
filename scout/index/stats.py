@@ -2,6 +2,7 @@
 
 from typing import Dict
 
+
 class IndexStats:
     """
     Stores corpus-level statistics needed for ranking.
@@ -23,4 +24,20 @@ class IndexStats:
         if not self.doc_lengths:
             return 1.0
         return sum(self.doc_lengths.values()) / self.total_docs
-    
+
+    # ----------------------------
+    # Snapshot/persistence API
+    # ----------------------------
+
+    def to_dict(self) -> Dict:
+        return {
+            "doc_lengths": self.doc_lengths,
+            "total_docs": self.total_docs,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict) -> "IndexStats":
+        stats = cls()
+        stats.doc_lengths = data["doc_lengths"]
+        stats.total_docs = data["total_docs"]
+        return stats
