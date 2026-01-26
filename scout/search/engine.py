@@ -110,19 +110,24 @@ class SearchEngine:
         scores: Dict[int, RankingResult] = {}
 
         for doc_id in self._candidate_documents(query_tokens):
+            # Excluded terms
             if parsed.exclude and any(
                 self._index.document_contains(doc_id, t) for t in parsed.exclude
             ):
                 continue
 
+            # Required terms
             if parsed.required and not all(
                 self._index.document_contains(doc_id, t) for t in parsed.required
             ):
                 continue
 
+            # Phrase matching
             if parsed.phrases:
                 if not self._state:
-                    raise RuntimeError("Phrase queries require IndexState with document tokens")
+                    raise RuntimeError(
+                        "Phrase queries require IndexState with document tokens"
+                    )
 
                 tokens = self._state.get_document_tokens(doc_id)
                 if not self._matches_phrases(tokens, parsed.phrases):
@@ -143,11 +148,17 @@ class SearchEngine:
         )[:limit]
 
     def _candidate_documents(self, query_tokens: List[str]) -> Iterable[int]:
-        candidates = set()
+        """
+        Returns the union of all documents that contain at least one query token.
+        Filtering logic (AND/OR/NOT) is handled in `search()`.
+        """
+        candidates: set[int] = set()
+
         for token in query_tokens:
             for doc_id, _ in self._index.get_postings(token):
                 candidates.add(doc_id)
-        return sorted(candidates)
+
+        return candidates
 
     def save(self, path: str) -> None:
         payload = {
@@ -180,6 +191,7 @@ class SearchEngine:
         )
 
     def _on_index_change(self, doc_id: int) -> None:
+        # Hook for cache invalidation / metrics later
         pass
 
     @staticmethod
@@ -187,9 +199,8 @@ class SearchEngine:
         for phrase in phrases:
             plen = len(phrase)
             if not any(
-                tokens[i:i + plen] == phrase
+                tokens[i : i + plen] == phrase
                 for i in range(len(tokens) - plen + 1)
             ):
                 return False
         return True
-

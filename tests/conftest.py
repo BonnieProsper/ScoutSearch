@@ -25,3 +25,11 @@ def sample_candidate():
             "ndcg@10": 0.3,
         }
     }
+
+
+@pytest.fixture
+def sample_records():
+    return [
+        {"id": "1", "text": "the quick brown fox"},
+        {"id": "2", "text": "jumped over the lazy dog"},
+    ]
