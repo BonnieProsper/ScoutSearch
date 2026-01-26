@@ -9,9 +9,7 @@ class RankingResult:
     """
     Result of scoring a single document.
 
-    - score: final numeric score
-    - components: high-level score components (strategy-defined)
-    - per_term: token-level explanations (optional, strategy-defined)
+    Immutable by convention.
     """
 
     def __init__(
@@ -24,12 +22,17 @@ class RankingResult:
         self.components = components
         self.per_term = per_term or {}
 
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, RankingResult):
+            return False
+        return (
+            self.score == other.score
+            and self.components == other.components
+            and self.per_term == other.per_term
+        )
+
 
 class RankingStrategy(ABC):
-    """
-    Base interface for ranking strategies.
-    """
-
     @abstractmethod
     def score(
         self,

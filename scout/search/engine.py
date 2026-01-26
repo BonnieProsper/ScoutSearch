@@ -1,7 +1,6 @@
 # scout/search/engine.py
 
 from typing import Dict, Iterable, List, Optional, Tuple
-from datetime import datetime
 import json
 
 from scout.index.builder import IndexBuilder
@@ -122,7 +121,10 @@ class SearchEngine:
                 continue
 
             if parsed.phrases:
-                tokens = self._state.get_document_tokens(doc_id) if self._state else []
+                if not self._state:
+                    raise RuntimeError("Phrase queries require IndexState with document tokens")
+
+                tokens = self._state.get_document_tokens(doc_id)
                 if not self._matches_phrases(tokens, parsed.phrases):
                     continue
 
@@ -147,22 +149,34 @@ class SearchEngine:
                 candidates.add(doc_id)
         return sorted(candidates)
 
-    def save(self, path) -> None:
+    def save(self, path: str) -> None:
+        payload = {
+            "index": self._index.to_dict(),
+            "config": {
+                "stopwords": sorted(self.stopwords),
+                "field_weights": self._field_weights,
+                "ngram": self._tokenizer.ngram,
+            },
+        }
         with open(path, "w", encoding="utf-8") as f:
-            json.dump(self._index.to_dict(), f)
+            json.dump(payload, f)
 
     @classmethod
-    def load(cls, path, *, ranking: RankingStrategy) -> "SearchEngine":
+    def load(cls, path: str, *, ranking: RankingStrategy) -> "SearchEngine":
         with open(path, "r", encoding="utf-8") as f:
             data = json.load(f)
 
-        index = InvertedIndex.from_dict(data)
-        tokenizer = Tokenizer()
+        index = InvertedIndex.from_dict(data["index"])
+        config = data["config"]
+
+        tokenizer = Tokenizer(ngram=config["ngram"])
 
         return cls(
             index=index,
             ranking=ranking,
             tokenizer=tokenizer,
+            stopwords=set(config["stopwords"]),
+            field_weights=config["field_weights"],
         )
 
     def _on_index_change(self, doc_id: int) -> None:
@@ -172,6 +186,10 @@ class SearchEngine:
     def _matches_phrases(tokens: List[str], phrases: List[List[str]]) -> bool:
         for phrase in phrases:
             plen = len(phrase)
-            if not any(tokens[i:i + plen] == phrase for i in range(len(tokens) - plen + 1)):
+            if not any(
+                tokens[i:i + plen] == phrase
+                for i in range(len(tokens) - plen + 1)
+            ):
                 return False
         return True
+

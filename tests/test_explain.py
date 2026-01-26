@@ -1,6 +1,13 @@
+import pytest
+
 from scout.search.engine import SearchEngine
 from scout.ranking.bm25 import BM25Ranking
 from scout.explain import explain_query
+from scout.ranking.robust import RobustRanking
+
+@pytest.fixture
+def engine(sample_records):
+    return SearchEngine.from_records(sample_records, ranking=RobustRanking())
 
 
 def test_explainability_contains_all_tokens():
@@ -30,3 +37,4 @@ def test_explain_query_does_not_mutate_results(engine):
     for (_, o), (_, e) in zip(original, explained):
         assert o is not e
         assert o.score == e.score
+        assert o.components == e.components

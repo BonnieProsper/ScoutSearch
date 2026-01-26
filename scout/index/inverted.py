@@ -3,10 +3,9 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from typing import Dict, List, Tuple, Optional
+from typing import Any, Dict, List, Tuple, Optional
 
 from .stats import IndexStats
-
 
 Posting = Tuple[int, int]  # (doc_id, term_frequency)
 
@@ -49,9 +48,6 @@ class InvertedIndex:
         return self.documents.get(doc_id, {})
 
     def document_contains(self, doc_id: int, token: str) -> bool:
-        """
-        Return True if the document contains the given token.
-        """
         for posting_doc_id, _ in self.get_postings(token):
             if posting_doc_id == doc_id:
                 return True
@@ -61,14 +57,11 @@ class InvertedIndex:
     # Snapshot / persistence API
     # ----------------------------
 
-    def to_dict(self) -> Dict:
-        """
-        Deterministic, JSON-serializable snapshot of the index.
-        """
+    def to_dict(self) -> Dict[str, Any]:
         return {
             "index": {
                 term: list(postings)
-                for term, postings in self.index.items()
+                for term, postings in sorted(self.index.items())
             },
             "doc_freqs": dict(self.doc_freqs),
             "documents": self.documents,
@@ -76,7 +69,7 @@ class InvertedIndex:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict) -> "InvertedIndex":
+    def from_dict(cls, data: Dict[str, Any]) -> "InvertedIndex":
         index = cls()
 
         index.index = defaultdict(

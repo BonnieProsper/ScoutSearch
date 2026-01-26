@@ -1,6 +1,6 @@
 # scout/index/stats.py
 
-from typing import Dict
+from typing import Any, Dict
 
 
 class IndexStats:
@@ -8,7 +8,7 @@ class IndexStats:
     Stores corpus-level statistics needed for ranking.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.doc_lengths: Dict[int, int] = {}
         self.total_docs: int = 0
 
@@ -29,14 +29,14 @@ class IndexStats:
     # Snapshot/persistence API
     # ----------------------------
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> Dict[str, Any]:
         return {
             "doc_lengths": self.doc_lengths,
             "total_docs": self.total_docs,
         }
 
     @classmethod
-    def from_dict(cls, data: Dict) -> "IndexStats":
+    def from_dict(cls, data: Dict[str, Any]) -> "IndexStats":
         stats = cls()
         stats.doc_lengths = data["doc_lengths"]
         stats.total_docs = data["total_docs"]
