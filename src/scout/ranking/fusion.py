@@ -20,7 +20,7 @@ class FusionRanking(RankingStrategy):
         components = {}
         per_term = {}
 
-        for strategy, weight in zip(self._strategies, self._weights):
+        for strategy, weight in zip(self._strategies, self._weights, strict=True):
             result = strategy.score(query_tokens, index, doc_id)
             total += result.score * weight
             components[strategy.__class__.__name__] = result.score * weight

@@ -35,7 +35,7 @@ def test_explain_query_does_not_mutate_results(engine):
     original = engine.search("apple", limit=3)
     explained = explain_query(engine, "apple", limit=3)
 
-    for (_, o), (_, e) in zip(original, explained):
+    for (_, o), (_, e) in zip(original, explained, strict=True):
         assert o is not e
         assert o.score == e.score
         assert o.components == e.components

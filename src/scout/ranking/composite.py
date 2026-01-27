@@ -23,7 +23,7 @@ class CompositeRanking(RankingStrategy):
         components = {}
         per_term = {}
 
-        for strategy, weight in zip(self.strategies, self.weights):
+        for strategy, weight in zip(self.strategies, self.weights, strict=True):
             result = strategy.score(query_tokens, index, doc_id)
             total_score += result.score * weight
             components[strategy.__class__.__name__] = result.score * weight

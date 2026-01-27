@@ -37,7 +37,7 @@ def aggregate_metrics(
     mrr_vals = []
     latency_vals = []
 
-    for q, r in zip(queries, results):
+    for q, r in zip(queries, results, strict=True):
         p_vals.append(
             precision_at_k(
                 retrieved=r.retrieved,

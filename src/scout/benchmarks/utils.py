@@ -44,17 +44,17 @@ def export_benchmark_results(results: list[BenchmarkResult], output_path: Path) 
 def aggregate_metrics(results: list[BenchmarkResult], queries: list[BenchmarkQuery], k: int):
     """Aggregate metrics across all queries."""
     precisions = [precision_at_k(retrieved=r.retrieved, relevant=q.relevant_doc_ids, k=k)
-                  for r, q in zip(results, queries)]
+                  for r, q in zip(results, queries, strict=True)]
     recalls = [recall_at_k(retrieved=r.retrieved, relevant=q.relevant_doc_ids, k=k)
-               for r, q in zip(results, queries)]
+               for r, q in zip(results, queries, strict=True)]
     mrrs = [mean_reciprocal_rank(retrieved=r.retrieved, relevant=q.relevant_doc_ids)
-            for r, q in zip(results, queries)]
+            for r, q in zip(results, queries, strict=True)]
     f1s = [f1_at_k(retrieved=r.retrieved, relevant=q.relevant_doc_ids, k=k)
-           for r, q in zip(results, queries)]
+           for r, q in zip(results, queries, strict=True)]
     ndcgs = [ndcg_at_k(retrieved=r.retrieved, relevant=q.relevant_doc_ids, k=k)
-             for r, q in zip(results, queries)]
+             for r, q in zip(results, queries, strict=True)]
     aps = [average_precision(retrieved=r.retrieved, relevant=q.relevant_doc_ids, k=k)
-           for r, q in zip(results, queries)]
+           for r, q in zip(results, queries, strict=True)]
     latencies = [r.latency_ms for r in results]
 
     latency_pct = latency_percentiles(latencies)
