@@ -47,7 +47,7 @@ def test_search_engine_returns_results(sample_records, ranking_cls):
     engine = SearchEngine.from_records(sample_records, ranking=ranking_cls())
     results = engine.search("fox")
     assert results
-    for doc_id, r in results:
+    for _doc_id, r in results:
         assert r.score > 0
         assert isinstance(r.components, dict)
 
@@ -86,7 +86,7 @@ def test_explain_query_returns_components(sample_records):
     engine = SearchEngine.from_records(sample_records, ranking=RobustRanking())
     explanations = explain_query(engine, "fox", limit=2)
     assert explanations
-    for doc_id, r in explanations:
+    for _doc_id, r in explanations:
         assert isinstance(r.score, float)
         assert isinstance(r.components, dict)
         assert isinstance(r.per_term, dict)
@@ -105,7 +105,6 @@ def test_recency_boost(sample_records):
 
 def test_autosaver_trigger(tmp_path, sample_records):
     state = IndexState()
-    auto = AutoSaver(state)
     engine = SearchEngine.from_records([], ranking=RobustRanking(), state=state)
     engine.add_document(100, {"id": 100, "text": "autosave test"})
     # _state.on_change should have emitted callback (manual check)
