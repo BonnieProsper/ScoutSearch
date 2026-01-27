@@ -12,7 +12,6 @@ from scout.ranking.fusion import FusionRanking
 from scout.ranking.recency import RecencyRanking
 from scout.ranking.robust import RobustRanking
 from scout.search.engine import SearchEngine
-from scout.state.persistence import AutoSaver
 from scout.state.signals import IndexState
 
 
