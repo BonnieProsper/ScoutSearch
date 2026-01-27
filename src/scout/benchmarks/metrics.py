@@ -61,6 +61,8 @@ def f1_at_k(*, retrieved: list[str], relevant: Iterable[str], k: int) -> float:
     return float(2 * p * r / (p + r)) if (p + r) > 0 else 0.0
 
 
-def latency_percentiles(latencies_ms: list[float], percentiles: list[int] = [50, 95, 99]) -> dict[int, float]:
+def latency_percentiles(latencies_ms: list[float], percentiles: list[int] | None = None) -> dict[int, float]:
     arr = np.array(latencies_ms, dtype=float)
+    if percentiles is None:
+        percentiles = [50, 95, 99]
     return {p: float(np.percentile(arr, p)) for p in percentiles}
