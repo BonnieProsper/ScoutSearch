@@ -1,8 +1,11 @@
-import time
-import pytest
-from scout.search.engine import SearchEngine
-from scout.ranking.robust import RobustRanking
 import sys
+import time
+
+import pytest
+
+from scout.ranking.robust import RobustRanking
+from scout.search.engine import SearchEngine
+
 
 @pytest.mark.performance
 @pytest.mark.skipif(sys.platform == "win32", reason="Timing unstable on Windows")

@@ -1,0 +1,227 @@
+Metadata-Version: 2.4
+Name: scout
+Version: 0.1.0
+Summary: ScoutSearch benchmark and search project
+Author-email: Bonnie McConnell <bonniep.mcconnell@gmail.com>
+License-Expression: MIT
+Keywords: search,benchmark,information-retrieval
+Requires-Python: >=3.11
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Requires-Dist: rich>=14.2
+Requires-Dist: numpy>=2.4
+Requires-Dist: pydantic>=2.12.5
+Provides-Extra: dev
+Requires-Dist: pytest>=8.2; extra == "dev"
+Requires-Dist: ruff>=0.5.5; extra == "dev"
+Requires-Dist: mypy>=1.10.0; extra == "dev"
+Dynamic: license-file
+
+# ScoutSearch — Stateful Search & Ranking Engine
+
+> A production-oriented local search and ranking engine with explainable scoring, usage-aware ranking, and benchmarked performance.
+
+---
+
+## Overview
+
+**ScoutSearch** is a professional-grade, stateful search engine designed for backend engineers, data engineers, and platform-oriented roles. It builds directly on the philosophy of **Adaptive Autocomplete (AAC)** by adding state, structured indexing, and explainable scoring.
+
+ScoutSearch allows:
+
+* Ingestion of structured data (JSON/CSV)
+* Deterministic indexing
+* Ranked search queries with multiple strategies
+* Usage-aware boosting (recency/frequency)
+* Explainable scoring breakdowns
+* Benchmarking of query performance and ranking trade-offs
+* CLI-first and fully testable system
+
+**Core principle:** frozen scope, high engineering discipline, production-oriented design.
+
+---
+
+## Key Features
+
+* Clean, minimal public API (`SearchEngine`, `IndexConfig`, `ScorerPreset`, `StateStore`)
+* Pluggable ranking strategies: `tf_only`, `tf_idf`, `recency_boosted`, `usage_weighted`, `robust`
+* Deterministic results with stable tie-breaking
+* Structured field support: search over `title`, `description`, `tags`, or custom fields
+* Stateful usage tracking (query frequency, document access, recent activity)
+* Explainable scoring per document
+* Benchmark harness for latency, scoring, and index performance
+* CLI tooling: ingest, query, explain, benchmark, usage stats
+
+---
+
+## CLI Examples
+
+**Ingest structured data:**
+
+```bash
+$ scout ingest data/jobs.json
+```
+
+**Query top results:**
+
+```bash
+$ scout query "python backend" --top 10
+```
+
+**Explain why a document scored that way:**
+
+```bash
+$ scout explain "python backend" --doc-id 42
+```
+
+**Inspect usage statistics:**
+
+```bash
+$ scout usage-stats --top 5
+```
+
+**Benchmark engine:**
+
+```bash
+$ scout benchmark --queries-file queries.txt --repetitions 10000
+```
+
+---
+
+## Public Python API
+
+```python
+import scout
+
+# Configure and instantiate engine
+engine = scout.SearchEngine(
+    index_config=scout.IndexConfig(
+        fields=["title", "description", "tags"],
+        tokenization="basic",
+        ngram=None
+    ),
+    scorer=scout.ScorerPreset.ROBUST,
+    state_store=scout.StateStore(path="state.json")
+)
+
+# Ingest structured data
+engine.ingest(records)  # records: List[Dict], must include 'id' + 'text', optional metadata
+
+# Query the engine
+results = engine.query("python backend", top_k=10)
+
+# Explain scoring for a document
+explanation = engine.explain("python backend", doc_id=42)
+
+# Inspect usage signals
+usage_stats = engine.usage_stats(top_k=5)
+
+# Benchmark engine
+benchmark_results = engine.benchmark(queries=["python backend", "data engineer"], repetitions=10000)
+```
+
+---
+
+## Architecture Overview
+
+```
+scout/
+│
+├── engine.py          # Public SearchEngine API
+├── ingest.py          # Data loading & validation
+├── index/
+│   ├── builder.py     # Index construction logic
+│   ├── inverted.py    # Inverted index data structures
+│   └── tokens.py      # Tokenization rules
+│
+├── ranking/
+│   ├── base.py        # RankingStrategy interface
+│   ├── tf.py
+│   ├── tfidf.py
+│   ├── recency.py
+│   └── robust.py
+│
+├── state/
+│   ├── store.py       # Usage persistence
+│   └── signals.py     # Usage metrics
+│
+├── explain.py         # Score explanation logic
+├── benchmark.py       # Benchmark harness
+├── cli.py             # CLI entrypoint
+│
+├── storage/
+│   ├── serializer.py  # Disk format (JSON)
+│   └── paths.py
+│
+└── tests/
+    └── ...
+```
+
+**Key rules:**
+
+* `engine.py` orchestrates; core modules handle computation
+* Ranking logic never touches persistence
+* CLI depends on engine, never the reverse
+* State is injected; no global variables
+
+---
+
+## Persistence Model
+
+* Index stored as serialized JSON (default)
+* State persisted separately
+* Optional SQLite backend for larger datasets
+* Atomic replace on ingest
+* Deterministic load order
+
+---
+
+## Non-Goals
+
+*  No web server or HTTP API
+*  No distributed system
+*  No ML or embeddings
+*  No fuzzy NLP or semantic search
+*  No UI/dashboard
+*  No live crawling
+
+---
+
+## Benchmark Example Output
+
+```
+$ scout benchmark --queries-file queries.txt --repetitions 10000
+Benchmarking 10,000 queries across 50,000 documents
+
+tf_only       | avg: 40.12 µs
+ tf_idf       | avg: 55.43 µs
+ recency      | avg: 47.89 µs
+ usage_weighted | avg: 52.77 µs
+ robust       | avg: 160.32 µs
+```
+
+---
+
+* Demonstrates stateful backend system design
+* Clean API and modular architecture
+* Pluggable, explainable ranking strategies
+* Usage-aware boosting over time
+* Deterministic, measurable, production-oriented
+* Fully testable and benchmarked
+* CLI-first, ready for real-world operational use
+
+
+# ScoutSearch Regression Benchmark
+
+1. Run a benchmark:
+   $ scout benchmark --config benchmarks/configs/example_benchmark.json
+   Output: benchmarks/main.json
+
+2. Run a regression test:
+   $ scout benchmark-regress --baseline benchmarks/main.json --candidate benchmarks/pr.json
+
+3. Exit codes:
+   0 → PASS
+   2 → Relevance regression
+   3 → Latency regression
+   4 → Both

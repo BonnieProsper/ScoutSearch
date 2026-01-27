@@ -1,18 +1,19 @@
 # tests/test_search.py
 
-import pytest
 from datetime import datetime, timedelta
 
-from scout.search.engine import SearchEngine
-from scout.ranking.robust import RobustRanking
-from scout.ranking.bm25 import BM25Ranking
-from scout.ranking.fusion import FusionRanking
-from scout.ranking.composite import CompositeRanking
-from scout.ranking.recency import RecencyRanking
-from scout.index.builder import IndexBuilder
-from scout.state.signals import IndexState
-from scout.state.persistence import AutoSaver
+import pytest
+
 from scout.explain import explain_query
+from scout.index.builder import IndexBuilder
+from scout.ranking.bm25 import BM25Ranking
+from scout.ranking.composite import CompositeRanking
+from scout.ranking.fusion import FusionRanking
+from scout.ranking.recency import RecencyRanking
+from scout.ranking.robust import RobustRanking
+from scout.search.engine import SearchEngine
+from scout.state.persistence import AutoSaver
+from scout.state.signals import IndexState
 
 
 @pytest.fixture

@@ -1,9 +1,10 @@
 import pytest
 
-from scout.search.engine import SearchEngine
-from scout.ranking.bm25 import BM25Ranking
 from scout.explain import explain_query
+from scout.ranking.bm25 import BM25Ranking
 from scout.ranking.robust import RobustRanking
+from scout.search.engine import SearchEngine
+
 
 @pytest.fixture
 def engine(sample_records):

@@ -1,12 +1,12 @@
 from pathlib import Path
 
 from scout.benchmarks import (
-    run_benchmark,
     BenchmarkQuery,
+    run_benchmark,
 )
 from scout.benchmarks.index import build_benchmark_index
-from scout.search.engine import SearchEngine
 from scout.ranking.robust import RobustRanking
+from scout.search.engine import SearchEngine
 
 
 def test_run_benchmark_executes(tmp_path: Path):

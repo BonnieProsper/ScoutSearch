@@ -1,6 +1,5 @@
-import sys
 import json
-from pathlib import Path
+import sys
 
 from scout.cli import main
 
@@ -27,4 +26,4 @@ def test_cli_runs_without_error(tmp_path, capsys):
     assert captured.out or captured.err
 
 def test_cli_imports():
-    import scout.cli
+    pass

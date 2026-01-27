@@ -3,6 +3,7 @@
 from scout.benchmarks.regression import compare_benchmarks
 from scout.benchmarks.thresholds import RegressionThresholds
 
+
 def test_detects_ndcg_regression(sample_baseline, sample_candidate, queries):
     report = compare_benchmarks(
         baseline_results=sample_baseline,

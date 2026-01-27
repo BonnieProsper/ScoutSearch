@@ -1,5 +1,5 @@
-from scout.state.signals import IndexState
 from scout.state.persistence import AutoSaver
+from scout.state.signals import IndexState
 
 
 def test_autosave_triggers_on_index_change(monkeypatch):

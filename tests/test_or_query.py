@@ -1,5 +1,5 @@
-from scout.search.engine import SearchEngine
 from scout.ranking.robust import RobustRanking
+from scout.search.engine import SearchEngine
 
 
 def test_or_query_returns_either():

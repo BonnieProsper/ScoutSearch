@@ -1,9 +1,9 @@
 from scout.cli import build_ranking
+from scout.index.builder import IndexBuilder
+from scout.ranking.bm25 import BM25Ranking
+from scout.ranking.robust import RobustRanking
 from scout.ranking.tf import TermFrequencyRanking
 from scout.ranking.tfidf import TFIDFRanking
-from scout.ranking.robust import RobustRanking
-from scout.ranking.bm25 import BM25Ranking
-from scout.index.builder import IndexBuilder
 
 
 def _build_index():
