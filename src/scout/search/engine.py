@@ -88,7 +88,6 @@ class SearchEngine:
             field_tokens = self._tokenizer.tokenize(value)
             weight = self._field_weights.get(field, 1.0)
 
-            # Repeat tokens proportionally, minimum 1 if weight > 0
             repeat = max(1, int(weight))
             tokens.extend(field_tokens * repeat)
 
@@ -108,6 +107,10 @@ class SearchEngine:
         parsed = parse_query(query)
 
         raw_tokens = list(parsed.required | parsed.optional)
+
+        if not raw_tokens and parsed.phrases:
+            raw_tokens = list({t for phrase in parsed.phrases for t in phrase})
+
         query_tokens = [t for t in raw_tokens if t not in self.stopwords]
 
         if not query_tokens:
@@ -116,14 +119,12 @@ class SearchEngine:
         results: dict[int, RankingResult] = {}
 
         for doc_id in self._candidate_documents(query_tokens):
-            # NOT terms
             if parsed.exclude and any(
                 self._index.document_contains(doc_id, t)
                 for t in parsed.exclude
             ):
                 continue
 
-            # AND / OR logic
             if parsed.has_or:
                 if not any(
                     self._index.document_contains(doc_id, t)
@@ -137,7 +138,6 @@ class SearchEngine:
                 ):
                     continue
 
-            # Phrase matching
             if parsed.phrases:
                 if self._state is None:
                     raise RuntimeError(
@@ -163,10 +163,6 @@ class SearchEngine:
         )[:limit]
 
     def _candidate_documents(self, query_tokens: list[str]) -> Iterable[int]:
-        """
-        Union of all documents containing at least one query token.
-        Boolean filtering is handled by `search`.
-        """
         candidates: set[int] = set()
 
         for token in query_tokens:
@@ -207,7 +203,6 @@ class SearchEngine:
         )
 
     def _on_index_change(self, doc_id: int) -> None:
-        # Reserved for cache invalidation / metrics
         pass
 
     @staticmethod
