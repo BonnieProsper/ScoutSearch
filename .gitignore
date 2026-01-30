@@ -13,3 +13,4 @@ datasets/abc_news/full.jsonl
 src/datasets/
 *.csv
 *.jsonl
+*.egg-info/

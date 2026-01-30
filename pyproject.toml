@@ -65,3 +65,8 @@ check_untyped_defs = true
 [[tool.mypy.overrides]]
 module = ["scout.*"]
 ignore_missing_imports = false
+
+[tool.pytest.ini_options]
+markers = [
+    "performance: marks performance-sensitive tests"
+]

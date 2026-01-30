@@ -3,8 +3,15 @@ Name: scout
 Version: 0.1.0
 Summary: ScoutSearch benchmark and search project
 Author-email: Bonnie McConnell <bonniep.mcconnell@gmail.com>
-License-Expression: MIT
+License: MIT
 Keywords: search,benchmark,information-retrieval
+Classifier: Development Status :: 3 - Alpha
+Classifier: Intended Audience :: Developers
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Classifier: Typing :: Typed
 Requires-Python: >=3.11
 Description-Content-Type: text/markdown
 License-File: LICENSE

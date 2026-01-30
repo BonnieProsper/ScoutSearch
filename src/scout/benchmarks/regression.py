@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any
 
 from scout.benchmarks.aggregate import aggregate_metrics
-from scout.benchmarks.run import BenchmarkQuery, BenchmarkResult
 from scout.benchmarks.thresholds import RegressionThresholds
 
 
@@ -14,18 +14,32 @@ class RegressionReport:
     reasons: list[str]
 
 
+def _extract_metrics(
+    *,
+    results: Any,
+    queries,
+    k: int,
+) -> dict[str, float]:
+    # Pre-aggregated metrics
+    if isinstance(results, dict) and "metrics" in results:
+        return results["metrics"]
+
+    # Raw benchmark results
+    return aggregate_metrics(results=results, queries=queries, k=k)
+
+
 def compare_benchmarks(
     *,
-    baseline_results: list[BenchmarkResult],
-    candidate_results: list[BenchmarkResult],
-    queries: list[BenchmarkQuery],
+    baseline_results,
+    candidate_results,
+    queries,
     k: int,
     thresholds: RegressionThresholds,
 ) -> RegressionReport:
-    base_metrics = aggregate_metrics(
+    base_metrics = _extract_metrics(
         results=baseline_results, queries=queries, k=k
     )
-    cand_metrics = aggregate_metrics(
+    cand_metrics = _extract_metrics(
         results=candidate_results, queries=queries, k=k
     )
 
@@ -37,7 +51,7 @@ def compare_benchmarks(
         ("precision@k_mean", thresholds.min_precision_delta),
         ("recall@k_mean", thresholds.min_recall_delta),
         ("mrr_mean", thresholds.min_mrr_delta),
-        ("ndcg_mean", thresholds.min_ndcg_delta),
+        ("ndcg@10", thresholds.min_ndcg_delta),
     ]:
         if metric_name not in base_metrics:
             continue
@@ -47,9 +61,7 @@ def compare_benchmarks(
 
         if delta < threshold:
             failed = True
-            reasons.append(
-                f"{metric_name} regressed by {delta:.4f}"
-            )
+            reasons.append(f"{metric_name} regressed by {delta:.4f}")
 
     base_latency = base_metrics.get("latency_ms_mean", 0.0)
     cand_latency = cand_metrics.get("latency_ms_mean", 0.0)

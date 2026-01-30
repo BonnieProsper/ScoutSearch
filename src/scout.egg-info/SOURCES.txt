@@ -1,7 +1,6 @@
 LICENSE
 README.md
 pyproject.toml
-src/datasets/abc_news/prepare.py
 src/scout/__init__.py
 src/scout/cli.py
 src/scout/explain.py
@@ -55,6 +54,7 @@ src/scout/state/store.py
 src/scout/storage/__init__.py
 src/scout/storage/paths.py
 src/scout/storage/serializer.py
+src/scripts/prepare_abc_news.py
 tests/test_autosave.py
 tests/test_benchmark.py
 tests/test_cli.py

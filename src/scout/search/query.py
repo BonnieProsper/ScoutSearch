@@ -9,6 +9,7 @@ class ParsedQuery:
     optional: set[str]
     exclude: set[str]
     phrases: list[list[str]]
+    has_or: bool
 
 
 def parse_query(query: str) -> ParsedQuery:
@@ -21,12 +22,14 @@ def parse_query(query: str) -> ParsedQuery:
 
     current_phrase: list[str] | None = None
     saw_or = False
+    has_or = False
 
     for raw in tokens:
         token = raw.lower()
 
         if token == "or":
             saw_or = True
+            has_or = True
             continue
 
         if token.startswith('"'):
@@ -58,4 +61,5 @@ def parse_query(query: str) -> ParsedQuery:
         optional=optional,
         exclude=exclude,
         phrases=phrases,
+        has_or=has_or,
     )

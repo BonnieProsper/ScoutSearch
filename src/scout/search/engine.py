@@ -8,6 +8,7 @@ from scout.index.inverted import InvertedIndex
 from scout.index.tokens import Tokenizer
 from scout.ranking.base import RankingResult, RankingStrategy
 from scout.state.signals import IndexState
+from scout.search.query import parse_query
 
 DEFAULT_STOPWORDS = {"the", "a", "an", "and", "or"}
 
@@ -98,8 +99,6 @@ class SearchEngine:
         *,
         limit: int = 10,
     ) -> list[tuple[int, RankingResult]]:
-        from scout.search.query import parse_query
-
         parsed = parse_query(query)
         raw_tokens = list(parsed.required | parsed.optional)
         query_tokens = [t for t in raw_tokens if t not in self.stopwords]
@@ -116,11 +115,19 @@ class SearchEngine:
             ):
                 continue
 
-            # Required terms
-            if parsed.required and not all(
-                self._index.document_contains(doc_id, t) for t in parsed.required
-            ):
-                continue
+            # Required / OR logic
+            if parsed.has_or:
+                if not any(
+                    self._index.document_contains(doc_id, t)
+                    for t in (parsed.required | parsed.optional)
+                ):
+                    continue
+            else:
+                if parsed.required and not all(
+                    self._index.document_contains(doc_id, t)
+                    for t in parsed.required
+                ):
+                    continue
 
             # Phrase matching
             if parsed.phrases:
@@ -191,7 +198,7 @@ class SearchEngine:
         )
 
     def _on_index_change(self, doc_id: int) -> None:
-        # Hook for cache invalidation / metrics later
+        # Hook for cache invalidation/metrics later
         pass
 
     @staticmethod
