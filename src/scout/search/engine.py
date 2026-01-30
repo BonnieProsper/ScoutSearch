@@ -1,5 +1,7 @@
 # scout/search/engine.py
 
+from __future__ import annotations
+
 import json
 from collections.abc import Iterable
 
@@ -7,8 +9,8 @@ from scout.index.builder import IndexBuilder
 from scout.index.inverted import InvertedIndex
 from scout.index.tokens import Tokenizer
 from scout.ranking.base import RankingResult, RankingStrategy
-from scout.state.signals import IndexState
 from scout.search.query import parse_query
+from scout.state.signals import IndexState
 
 DEFAULT_STOPWORDS = {"the", "a", "an", "and", "or"}
 
@@ -16,7 +18,7 @@ DEFAULT_STOPWORDS = {"the", "a", "an", "and", "or"}
 class SearchEngine:
     """
     High-level search façade coordinating tokenization, ranking,
-    phrase filtering, and deterministic result aggregation.
+    boolean logic, phrase filtering, and deterministic result ordering.
     """
 
     def __init__(
@@ -28,7 +30,7 @@ class SearchEngine:
         stopwords: set[str] | None = None,
         state: IndexState | None = None,
         field_weights: dict[str, float] | None = None,
-    ):
+    ) -> None:
         self._index = index
         self._ranking = ranking
         self._tokenizer = tokenizer
@@ -36,7 +38,7 @@ class SearchEngine:
         self._field_weights = field_weights or {}
         self.stopwords = stopwords if stopwords is not None else DEFAULT_STOPWORDS
 
-        if self._state:
+        if self._state is not None:
             self._state.on_change.subscribe(self._on_index_change)
 
     @classmethod
@@ -50,12 +52,12 @@ class SearchEngine:
         stopwords: set[str] | None = None,
         state: IndexState | None = None,
         field_weights: dict[str, float] | None = None,
-    ) -> "SearchEngine":
+    ) -> SearchEngine:
         builder = IndexBuilder(fields=fields, ngram=ngram)
         index = builder.build(records, field_weights=field_weights)
         tokenizer = Tokenizer(ngram=ngram)
 
-        if state:
+        if state is not None:
             state.index = index
 
         return cls(
@@ -75,6 +77,7 @@ class SearchEngine:
         fields: list[str] | None = None,
     ) -> None:
         tokens: list[str] = []
+
         used_fields = fields or list(self._field_weights.keys()) or ["text"]
 
         for field in used_fields:
@@ -83,12 +86,15 @@ class SearchEngine:
                 continue
 
             field_tokens = self._tokenizer.tokenize(value)
-            weight = int(self._field_weights.get(field, 1))
-            tokens.extend(field_tokens * weight)
+            weight = self._field_weights.get(field, 1.0)
+
+            # Repeat tokens proportionally, minimum 1 if weight > 0
+            repeat = max(1, int(weight))
+            tokens.extend(field_tokens * repeat)
 
         tokens = [t for t in tokens if t not in self.stopwords]
 
-        if self._state:
+        if self._state is not None:
             self._state.add_document(doc_id, tokens, metadata=record)
         else:
             self._index.add_document(doc_id, tokens, metadata=record)
@@ -100,22 +106,24 @@ class SearchEngine:
         limit: int = 10,
     ) -> list[tuple[int, RankingResult]]:
         parsed = parse_query(query)
+
         raw_tokens = list(parsed.required | parsed.optional)
         query_tokens = [t for t in raw_tokens if t not in self.stopwords]
 
         if not query_tokens:
             return []
 
-        scores: dict[int, RankingResult] = {}
+        results: dict[int, RankingResult] = {}
 
         for doc_id in self._candidate_documents(query_tokens):
-            # Excluded terms
+            # NOT terms
             if parsed.exclude and any(
-                self._index.document_contains(doc_id, t) for t in parsed.exclude
+                self._index.document_contains(doc_id, t)
+                for t in parsed.exclude
             ):
                 continue
 
-            # Required / OR logic
+            # AND / OR logic
             if parsed.has_or:
                 if not any(
                     self._index.document_contains(doc_id, t)
@@ -131,7 +139,7 @@ class SearchEngine:
 
             # Phrase matching
             if parsed.phrases:
-                if not self._state:
+                if self._state is None:
                     raise RuntimeError(
                         "Phrase queries require IndexState with document tokens"
                     )
@@ -140,24 +148,24 @@ class SearchEngine:
                 if not self._matches_phrases(tokens, parsed.phrases):
                     continue
 
-            result = self._ranking.score(
+            ranking_result = self._ranking.score(
                 query_tokens=query_tokens,
                 index=self._index,
                 doc_id=doc_id,
             )
 
-            if result.score > 0.0:
-                scores[doc_id] = result
+            if ranking_result.score > 0.0:
+                results[doc_id] = ranking_result
 
         return sorted(
-            scores.items(),
-            key=lambda x: (-x[1].score, x[0]),
+            results.items(),
+            key=lambda item: (-item[1].score, item[0]),
         )[:limit]
 
     def _candidate_documents(self, query_tokens: list[str]) -> Iterable[int]:
         """
-        Returns the union of all documents that contain at least one query token.
-        Filtering logic (AND/OR/NOT) is handled in `search()`.
+        Union of all documents containing at least one query token.
+        Boolean filtering is handled by `search`.
         """
         candidates: set[int] = set()
 
@@ -176,11 +184,12 @@ class SearchEngine:
                 "ngram": self._tokenizer.ngram,
             },
         }
+
         with open(path, "w", encoding="utf-8") as f:
             json.dump(payload, f)
 
     @classmethod
-    def load(cls, path: str, *, ranking: RankingStrategy) -> "SearchEngine":
+    def load(cls, path: str, *, ranking: RankingStrategy) -> SearchEngine:
         with open(path, encoding="utf-8") as f:
             data = json.load(f)
 
@@ -198,11 +207,14 @@ class SearchEngine:
         )
 
     def _on_index_change(self, doc_id: int) -> None:
-        # Hook for cache invalidation/metrics later
+        # Reserved for cache invalidation / metrics
         pass
 
     @staticmethod
-    def _matches_phrases(tokens: list[str], phrases: list[list[str]]) -> bool:
+    def _matches_phrases(
+        tokens: list[str],
+        phrases: list[list[str]],
+    ) -> bool:
         for phrase in phrases:
             plen = len(phrase)
             if not any(
