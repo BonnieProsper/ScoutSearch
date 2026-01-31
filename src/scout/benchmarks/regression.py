@@ -1,12 +1,16 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from collections.abc import Iterable
-from typing import Mapping
+from collections.abc import Iterable, Mapping
+from typing import TypedDict
 
 from scout.benchmarks.aggregate import aggregate_metrics
 from scout.benchmarks.run import BenchmarkResult
 from scout.benchmarks.thresholds import RegressionThresholds
+
+
+class MetricsMapping(TypedDict):
+    metrics: Mapping[str, float]
 
 
 @dataclass(frozen=True)
@@ -26,14 +30,13 @@ _DISPLAY = {
 
 
 def _extract_metrics(
-    results: Iterable[BenchmarkResult] | Mapping[str, object],
+    results: Iterable[BenchmarkResult] | MetricsMapping,
     *,
     queries,
     k: int,
 ) -> dict[str, float]:
     if isinstance(results, Mapping):
         metrics_obj = results["metrics"]
-        assert isinstance(metrics_obj, Mapping)
 
         normalized: dict[str, float] = {}
 
@@ -41,7 +44,7 @@ def _extract_metrics(
             if key.startswith("ndcg@"):
                 normalized["ndcg@k"] = float(value)
             else:
-                normalized[str(key)] = float(value)
+                normalized[key] = float(value)
 
         return normalized
 

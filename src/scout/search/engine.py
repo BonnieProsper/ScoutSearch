@@ -57,7 +57,32 @@ class SearchEngine:
         index = builder.build(records, field_weights=field_weights)
         tokenizer = Tokenizer(ngram=ngram)
 
-        if state is not None:
+        # Initialize IndexState with tokens if not provided
+        if state is None:
+            tokens_by_doc: dict[int, list[str]] = {}
+            for doc_id, record in enumerate(records):
+                if fields is not None:
+                    used_fields = fields
+                elif field_weights is not None:
+                    used_fields = list(field_weights)
+                else:
+                    used_fields = ["text"]
+
+                tokens: list[str] = []
+                for field in used_fields:
+                    value = record.get(field)
+                    if not isinstance(value, str):
+                        continue
+                    field_tokens = tokenizer.tokenize(value)
+                    weight = field_weights.get(field, 1.0) if field_weights else 1.0
+                    repeat = max(1, int(weight))
+                    tokens.extend(field_tokens * repeat)
+                tokens = [t for t in tokens if t not in (stopwords or DEFAULT_STOPWORDS)]
+                tokens_by_doc[doc_id] = tokens
+
+            state = IndexState(tokens_by_doc)
+
+        else:
             state.index = index
 
         return cls(
@@ -69,6 +94,7 @@ class SearchEngine:
             field_weights=field_weights,
         )
 
+
     def add_document(
         self,
         doc_id: int,
@@ -78,7 +104,13 @@ class SearchEngine:
     ) -> None:
         tokens: list[str] = []
 
-        used_fields = fields or list(self._field_weights.keys()) or ["text"]
+        if fields is not None:
+            used_fields = fields
+        elif self._field_weights:
+            used_fields = list(self._field_weights)
+        else:
+            used_fields = ["text"]
+
 
         for field in used_fields:
             value = record.get(field)
